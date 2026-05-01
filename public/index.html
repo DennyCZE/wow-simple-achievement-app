@@ -168,6 +168,52 @@
   .ach-name:hover { color: var(--accent); }
   .ach-id { font-size: 0.75rem; color: var(--muted); margin-left: 8px; }
   .ach-date { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+
+  .favorites { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .fav-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 4px 6px 4px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .fav-chip:hover { border-color: var(--accent); background: var(--panel-2); }
+  .fav-chip-name { color: var(--text); font-weight: 500; }
+  .fav-chip-meta { color: var(--muted); font-size: 0.8rem; }
+  .fav-chip-remove {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 50%;
+    width: auto;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1;
+    font-weight: normal;
+  }
+  .fav-chip-remove:hover { color: var(--error); background: var(--panel); }
+
+  .fav-toggle {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    width: auto;
+    margin: 0;
+    font-weight: normal;
+  }
+  .fav-toggle:hover { border-color: var(--accent); }
+  .fav-toggle.is-fav { color: var(--accent); border-color: var(--accent); }
 </style>
 <script>window.whTooltips = { colorLinks: true, iconizeLinks: true, renameLinks: false };</script>
 <script async src="https://www.wowhead.com/widgets/power.js"></script>
@@ -177,8 +223,13 @@
   <h1>⚔️ WoW Simple Achievement App</h1>
   <div class="subtitle">
     <span>Vyhledávač achievementů postavy přes Battle.net API</span>
-    <span id="cacheBadge"></span>
+    <span style="display:flex; gap: 8px; align-items: center;">
+      <button id="favToggle" class="fav-toggle" hidden></button>
+      <span id="cacheBadge"></span>
+    </span>
   </div>
+
+  <div id="favorites" class="favorites" style="display:none;"></div>
 
   <div class="form-card">
     <div class="form-row">
@@ -243,24 +294,47 @@
     $(id).addEventListener('change', () => localStorage.setItem('wow_' + id, $(id).value));
   });
 
-  // Realm autocomplete from per-region search history
-  const REALM_HISTORY_KEY = 'wow_realm_history';
-  const REALM_HISTORY_MAX = 10;
+  // Realm autocomplete from Battle.net realm index (cached per region+locale)
+  const REALM_CACHE_PREFIX = 'wow_realms:';
+  const REALM_CACHE_TTL = 7 * 86400 * 1000;
+  const realmsByRegion = {};
 
-  function getRealmHistory() {
-    try { return JSON.parse(localStorage.getItem(REALM_HISTORY_KEY) || '[]'); }
-    catch { return []; }
+  async function loadRealms(region, locale) {
+    if (realmsByRegion[region]) return realmsByRegion[region];
+
+    try {
+      const raw = localStorage.getItem(REALM_CACHE_PREFIX + region);
+      if (raw) {
+        const cached = JSON.parse(raw);
+        if (cached.locale === locale && cached.fetched_at > Date.now() - REALM_CACHE_TTL) {
+          realmsByRegion[region] = cached.realms;
+          return cached.realms;
+        }
+      }
+    } catch {}
+
+    try {
+      const params = new URLSearchParams({ action: 'realms', region, locale });
+      const res = await fetch(`${API_URL}?${params}`);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const realms = Array.isArray(data.realms) ? data.realms : [];
+      realmsByRegion[region] = realms;
+      try {
+        localStorage.setItem(REALM_CACHE_PREFIX + region, JSON.stringify({
+          locale, fetched_at: Date.now(), realms,
+        }));
+      } catch {}
+      return realms;
+    } catch {
+      return [];
+    }
   }
-  function pushRealmHistory(realm, region) {
-    const hist = getRealmHistory().filter(h => !(h.realm === realm && h.region === region));
-    hist.unshift({ realm, region });
-    localStorage.setItem(REALM_HISTORY_KEY, JSON.stringify(hist.slice(0, REALM_HISTORY_MAX)));
-  }
-  function renderRealmDatalist() {
-    const region = $('region').value;
-    $('realm-history').innerHTML = getRealmHistory()
-      .filter(h => h.region === region)
-      .map(h => `<option value="${escapeHtml(h.realm)}">`)
+
+  async function renderRealmDatalist() {
+    const realms = await loadRealms($('region').value, $('locale').value);
+    $('realm-history').innerHTML = realms
+      .map(r => `<option value="${escapeHtml(r.name)}">`)
       .join('');
   }
   $('region').addEventListener('change', () => {
@@ -268,7 +342,112 @@
     activeCategoryId = null;
     categoryMap = null;
   });
+  $('locale').addEventListener('change', renderRealmDatalist);
   renderRealmDatalist();
+
+  // Favorites
+  const FAV_KEY = 'wow_favorites';
+  const sameFav = (a, b) =>
+    a.character.toLowerCase() === b.character.toLowerCase() &&
+    a.realm.toLowerCase() === b.realm.toLowerCase() &&
+    a.region === b.region;
+
+  function getFavorites() {
+    try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); }
+    catch { return []; }
+  }
+  function setFavorites(favs) { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); }
+  function isFavorite(f) { return getFavorites().some(x => sameFav(x, f)); }
+  function addFavorite(f) {
+    const favs = getFavorites();
+    if (!favs.some(x => sameFav(x, f))) {
+      favs.unshift(f);
+      setFavorites(favs);
+    }
+  }
+  function removeFavorite(f) {
+    setFavorites(getFavorites().filter(x => !sameFav(x, f)));
+  }
+  function currentFormFav() {
+    return {
+      character: $('character').value.trim(),
+      realm: $('realm').value.trim(),
+      region: $('region').value,
+    };
+  }
+
+  function renderFavorites() {
+    const favs = getFavorites();
+    const wrap = $('favorites');
+    if (favs.length === 0) {
+      wrap.style.display = 'none';
+      wrap.innerHTML = '';
+      return;
+    }
+    wrap.style.display = 'flex';
+    wrap.innerHTML = favs.map((f, i) => `
+      <div class="fav-chip" data-idx="${i}">
+        <span class="fav-chip-name">${escapeHtml(f.character)}</span>
+        <span class="fav-chip-meta">· ${escapeHtml(f.realm)} (${f.region})</span>
+        <button class="fav-chip-remove" data-idx="${i}" aria-label="Odebrat">×</button>
+      </div>
+    `).join('');
+
+    wrap.querySelectorAll('.fav-chip').forEach(chip => {
+      chip.addEventListener('click', e => {
+        if (e.target.classList.contains('fav-chip-remove')) return;
+        const f = getFavorites()[parseInt(chip.dataset.idx, 10)];
+        if (!f) return;
+        const regionChanged = $('region').value !== f.region;
+        $('character').value = f.character;
+        $('realm').value = f.realm;
+        $('region').value = f.region;
+        localStorage.setItem('wow_character', f.character);
+        localStorage.setItem('wow_realm', f.realm);
+        localStorage.setItem('wow_region', f.region);
+        if (regionChanged) {
+          activeCategoryId = null;
+          categoryMap = null;
+          renderRealmDatalist();
+        }
+        loadAchievements();
+      });
+    });
+    wrap.querySelectorAll('.fav-chip-remove').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const f = getFavorites()[parseInt(btn.dataset.idx, 10)];
+        if (!f) return;
+        removeFavorite(f);
+        renderFavorites();
+        updateFavToggle();
+      });
+    });
+  }
+
+  function updateFavToggle() {
+    const f = currentFormFav();
+    const btn = $('favToggle');
+    if (!f.character || !f.realm) { btn.hidden = true; return; }
+    btn.hidden = false;
+    if (isFavorite(f)) {
+      btn.classList.add('is-fav');
+      btn.textContent = '★ Odebrat z oblíbených';
+    } else {
+      btn.classList.remove('is-fav');
+      btn.textContent = '☆ Přidat do oblíbených';
+    }
+  }
+
+  $('favToggle').addEventListener('click', () => {
+    const f = currentFormFav();
+    if (!f.character || !f.realm) return;
+    if (isFavorite(f)) removeFavorite(f); else addFavorite(f);
+    renderFavorites();
+    updateFavToggle();
+  });
+
+  renderFavorites();
 
   searchBtn.addEventListener('click', loadAchievements);
   $('character').addEventListener('keydown', e => { if (e.key === 'Enter') loadAchievements(); });
@@ -317,8 +496,7 @@
       }
 
       renderResults(data);
-      pushRealmHistory(realm, region);
-      renderRealmDatalist();
+      updateFavToggle();
       clearStatus();
     } catch (err) {
       showStatus('Chyba spojení: ' + err.message, 'error');

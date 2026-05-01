@@ -97,6 +97,15 @@ final class BlizzardClient
     }
 
     /** @return array<string,mixed> */
+    public function getRealmIndex(string $region, string $locale): array
+    {
+        return $this->getJson(sprintf(
+            'https://%s.api.blizzard.com/data/wow/realm/index?namespace=dynamic-%s&locale=%s',
+            $region, $region, rawurlencode($locale)
+        ));
+    }
+
+    /** @return array<string,mixed> */
     public function getAchievementCategoryIndex(string $region, string $locale): array
     {
         return $this->getJson(sprintf(

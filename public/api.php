@@ -67,6 +67,37 @@ try {
     $client = new BlizzardClient($clientId, $clientSecret, $cache);
 
     // --------------------------------------------------------
+    // action=realms: list of realms for a region (name + slug),
+    // alphabetical, cached 7 days.
+    // --------------------------------------------------------
+    if ($action === 'realms') {
+        $cacheKey = sprintf('realms:%s:%s', $region, $locale);
+        $cached = $cache->get($cacheKey);
+        if ($cached !== null) {
+            header('X-Cache: HIT');
+            echo $cached;
+            exit;
+        }
+        header('X-Cache: MISS');
+
+        $data   = $client->getRealmIndex($region, $locale);
+        $realms = array_map(
+            fn($r) => [
+                'name' => (string)($r['name'] ?? ''),
+                'slug' => (string)($r['slug'] ?? ''),
+            ],
+            $data['realms'] ?? []
+        );
+        $realms = array_values(array_filter($realms, fn($r) => $r['name'] !== ''));
+        usort($realms, fn($a, $b) => strcmp($a['name'], $b['name']));
+
+        $body = json_encode(['realms' => $realms], JSON_UNESCAPED_UNICODE);
+        $cache->set($cacheKey, $body, 7 * 86400);
+        echo $body;
+        exit;
+    }
+
+    // --------------------------------------------------------
     // action=category-map: build {categoryId: {name, achievement_ids:[...]}}
     // covering descendants. Heavy first call (~150 Blizzard calls,
     // 30-60s); cached 7 days.
