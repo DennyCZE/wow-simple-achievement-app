@@ -235,7 +235,7 @@
     <div class="form-row">
       <div>
         <label for="character">Jméno postavy</label>
-        <input type="text" id="character" placeholder="např. Denisek" autocomplete="off">
+        <input type="text" id="character" placeholder="např. Thrall" autocomplete="off">
       </div>
       <div>
         <label for="realm">Realm / Server</label>
@@ -281,6 +281,7 @@
   let activeCategoryId = null;
   let categoryMap = null;
   let categoryMapPromise = null;
+  let lastResultsData = null;
 
   const $ = id => document.getElementById(id);
   const statusEl  = $('status');
@@ -293,6 +294,105 @@
     if (saved) $(id).value = saved;
     $(id).addEventListener('change', () => localStorage.setItem('wow_' + id, $(id).value));
   });
+
+  // i18n — UI language follows the locale dropdown (cs_CZ → Czech, else English)
+  const i18n = {
+    cs: {
+      subtitle: 'Vyhledávač achievementů postavy přes Battle.net API',
+      labelCharacter: 'Jméno postavy',
+      labelRealm: 'Realm / Server',
+      labelRegion: 'Region',
+      labelLocale: 'Jazyk',
+      regionEU: 'Evropa (EU)', regionUS: 'Amerika (US)', regionKR: 'Korea (KR)', regionTW: 'Taiwan (TW)',
+      placeholderCharacter: 'např. Thrall',
+      placeholderRealm: 'např. Argent Dawn',
+      submit: 'Načíst achievementy',
+      submitLoading: 'Načítám...',
+      favAdd: '☆ Přidat do oblíbených',
+      favRemove: '★ Odebrat z oblíbených',
+      favRemoveAria: 'Odebrat',
+      cacheHit: 'cache: hit',
+      cacheLive: 'cache: live',
+      statusFillFields: 'Vyplň prosím jméno postavy i realm.',
+      statusLoading: 'Načítám data z Battle.net API...',
+      statusError: 'Chyba',
+      statusConn: 'Chyba spojení: ',
+      statusNotFound: (c, r) => `Postava "${c}" na realmu "${r}" nebyla nalezena. Zkontroluj jméno a server.`,
+      statTotalCompleted: 'Splněno celkem',
+      statPoints: 'Bodů',
+      statKnown: 'V seznamu',
+      statIncomplete: 'Rozpracováno',
+      categoriesTitle: 'Kategorie',
+      categoryStats: (q, p) => `<strong>${q}</strong> splněno · <strong>${p}</strong> bodů`,
+      categoryLoading: 'Načítám mapu kategorií (první načtení může trvat až minutu)...',
+      categoryFail: 'Nepodařilo se načíst kategorie: ',
+      searchPlaceholder: 'Hledat achievement...',
+      filterAll: 'Vše',
+      filterCompleted: '✓ Splněno',
+      filterIncomplete: 'Rozpracováno',
+      empty: 'Žádné výsledky odpovídající filtru.',
+      dateLocale: 'cs-CZ',
+      sortLocale: 'cs',
+    },
+    en: {
+      subtitle: 'Look up character achievements via the Battle.net API',
+      labelCharacter: 'Character name',
+      labelRealm: 'Realm / Server',
+      labelRegion: 'Region',
+      labelLocale: 'Language',
+      regionEU: 'Europe (EU)', regionUS: 'Americas (US)', regionKR: 'Korea (KR)', regionTW: 'Taiwan (TW)',
+      placeholderCharacter: 'e.g. Thrall',
+      placeholderRealm: 'e.g. Argent Dawn',
+      submit: 'Load achievements',
+      submitLoading: 'Loading...',
+      favAdd: '☆ Add to favorites',
+      favRemove: '★ Remove from favorites',
+      favRemoveAria: 'Remove',
+      cacheHit: 'cache: hit',
+      cacheLive: 'cache: live',
+      statusFillFields: 'Please enter both character name and realm.',
+      statusLoading: 'Loading data from Battle.net API...',
+      statusError: 'Error',
+      statusConn: 'Connection error: ',
+      statusNotFound: (c, r) => `Character "${c}" on realm "${r}" not found. Check the spelling.`,
+      statTotalCompleted: 'Total completed',
+      statPoints: 'Points',
+      statKnown: 'On list',
+      statIncomplete: 'In progress',
+      categoriesTitle: 'Categories',
+      categoryStats: (q, p) => `<strong>${q}</strong> done · <strong>${p}</strong> pts`,
+      categoryLoading: 'Loading category map (first load may take up to a minute)...',
+      categoryFail: 'Failed to load categories: ',
+      searchPlaceholder: 'Search achievement...',
+      filterAll: 'All',
+      filterCompleted: '✓ Completed',
+      filterIncomplete: 'In progress',
+      empty: 'No results match this filter.',
+      dateLocale: 'en-US',
+      sortLocale: 'en',
+    },
+  };
+  const uiLang = () => $('locale').value === 'cs_CZ' ? 'cs' : 'en';
+  const t = () => i18n[uiLang()];
+
+  function applyStaticI18n() {
+    const _ = t();
+    document.querySelector('.subtitle > span:first-child').textContent = _.subtitle;
+    document.querySelector('label[for="character"]').textContent = _.labelCharacter;
+    document.querySelector('label[for="realm"]').textContent = _.labelRealm;
+    document.querySelector('label[for="region"]').textContent = _.labelRegion;
+    document.querySelector('label[for="locale"]').textContent = _.labelLocale;
+    document.querySelector('#region option[value="eu"]').textContent = _.regionEU;
+    document.querySelector('#region option[value="us"]').textContent = _.regionUS;
+    document.querySelector('#region option[value="kr"]').textContent = _.regionKR;
+    document.querySelector('#region option[value="tw"]').textContent = _.regionTW;
+    if (!searchBtn.disabled) searchBtn.textContent = _.submit;
+    $('character').placeholder = _.placeholderCharacter;
+    $('realm').placeholder = _.placeholderRealm;
+    document.documentElement.lang = uiLang();
+    updateFavToggle();
+    if (lastResultsData) renderResults(lastResultsData);
+  }
 
   // Realm autocomplete from Battle.net realm index (cached per region+locale)
   const REALM_CACHE_PREFIX = 'wow_realms:';
@@ -342,7 +442,10 @@
     activeCategoryId = null;
     categoryMap = null;
   });
-  $('locale').addEventListener('change', renderRealmDatalist);
+  $('locale').addEventListener('change', () => {
+    renderRealmDatalist();
+    applyStaticI18n();
+  });
   renderRealmDatalist();
 
   // Favorites
@@ -385,11 +488,12 @@
       return;
     }
     wrap.style.display = 'flex';
+    const aria = t().favRemoveAria;
     wrap.innerHTML = favs.map((f, i) => `
       <div class="fav-chip" data-idx="${i}">
         <span class="fav-chip-name">${escapeHtml(f.character)}</span>
         <span class="fav-chip-meta">· ${escapeHtml(f.realm)} (${f.region})</span>
-        <button class="fav-chip-remove" data-idx="${i}" aria-label="Odebrat">×</button>
+        <button class="fav-chip-remove" data-idx="${i}" aria-label="${aria}">×</button>
       </div>
     `).join('');
 
@@ -432,10 +536,10 @@
     btn.hidden = false;
     if (isFavorite(f)) {
       btn.classList.add('is-fav');
-      btn.textContent = '★ Odebrat z oblíbených';
+      btn.textContent = t().favRemove;
     } else {
       btn.classList.remove('is-fav');
-      btn.textContent = '☆ Přidat do oblíbených';
+      btn.textContent = t().favAdd;
     }
   }
 
@@ -448,6 +552,7 @@
   });
 
   renderFavorites();
+  applyStaticI18n();
 
   searchBtn.addEventListener('click', loadAchievements);
   $('character').addEventListener('keydown', e => { if (e.key === 'Enter') loadAchievements(); });
@@ -460,7 +565,7 @@
     const locale    = $('locale').value;
 
     if (!character || !realm) {
-      showStatus('Vyplň prosím jméno postavy i realm.', 'error');
+      showStatus(t().statusFillFields, 'error');
       return;
     }
 
@@ -468,8 +573,8 @@
     localStorage.setItem('wow_realm', realm);
 
     searchBtn.disabled = true;
-    searchBtn.textContent = 'Načítám...';
-    showStatus('Načítám data z Battle.net API...', 'loading');
+    searchBtn.textContent = t().submitLoading;
+    showStatus(t().statusLoading, 'loading');
     resultsEl.innerHTML = '';
     cacheBadge.textContent = '';
     cacheBadge.className = 'cache-badge';
@@ -481,28 +586,29 @@
 
       const cacheStatus = res.headers.get('X-Cache');
       if (cacheStatus) {
-        cacheBadge.textContent = cacheStatus === 'HIT' ? 'cache: hit' : 'cache: live';
+        cacheBadge.textContent = cacheStatus === 'HIT' ? t().cacheHit : t().cacheLive;
         cacheBadge.className = 'cache-badge ' + cacheStatus.toLowerCase();
       }
 
       if (!res.ok) {
-        const errMsg = data.error || `Chyba ${res.status}`;
+        const errMsg = data.error || `${t().statusError} ${res.status}`;
         let userMsg = errMsg;
         if (res.status === 404) {
-          userMsg = `Postava "${character}" na realmu "${realm}" nebyla nalezena. Zkontroluj jméno a server.`;
+          userMsg = t().statusNotFound(character, realm);
         }
         showStatus(userMsg, 'error');
         return;
       }
 
+      lastResultsData = data;
       renderResults(data);
       updateFavToggle();
       clearStatus();
     } catch (err) {
-      showStatus('Chyba spojení: ' + err.message, 'error');
+      showStatus(t().statusConn + err.message, 'error');
     } finally {
       searchBtn.disabled = false;
-      searchBtn.textContent = 'Načíst achievementy';
+      searchBtn.textContent = t().submit;
     }
   }
 
@@ -522,14 +628,16 @@
       .slice()
       .sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
 
+    const _ = t();
+
     const categoryHtml = categoryProgress.length ? `
       <details open class="cat-section">
-        <summary class="section-title">Kategorie</summary>
+        <summary class="section-title">${_.categoriesTitle}</summary>
         <div class="cat-grid">
           ${categoryProgress.map(c => `
             <div class="cat-card${activeCategoryId === c.category?.id ? ' active' : ''}" data-cat-id="${c.category?.id ?? ''}" role="button" tabindex="0">
               <div class="cat-name">${escapeHtml(c.category?.name || '—')}</div>
-              <div class="cat-stats"><strong>${c.quantity ?? 0}</strong> splněno · <strong>${c.points ?? 0}</strong> bodů</div>
+              <div class="cat-stats">${_.categoryStats(c.quantity ?? 0, c.points ?? 0)}</div>
             </div>
           `).join('')}
         </div>
@@ -540,33 +648,35 @@
       <div class="stats">
         <div class="stat-card">
           <div class="stat-value">${totalQuantity}</div>
-          <div class="stat-label">Splněno celkem</div>
+          <div class="stat-label">${_.statTotalCompleted}</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">${totalPoints}</div>
-          <div class="stat-label">Bodů</div>
+          <div class="stat-label">${_.statPoints}</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">${totalKnown}</div>
-          <div class="stat-label">V seznamu</div>
+          <div class="stat-label">${_.statKnown}</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">${totalKnown - totalCompleted}</div>
-          <div class="stat-label">Rozpracováno</div>
+          <div class="stat-label">${_.statIncomplete}</div>
         </div>
       </div>
 
       ${categoryHtml}
 
       <div class="filters">
-        <input type="search" id="searchInput" placeholder="Hledat achievement...">
-        <button class="filter-btn active" data-filter="all">Vše</button>
-        <button class="filter-btn" data-filter="completed">✓ Splněno</button>
-        <button class="filter-btn" data-filter="incomplete">Rozpracováno</button>
+        <input type="search" id="searchInput" placeholder="${_.searchPlaceholder}">
+        <button class="filter-btn${currentFilter === 'all' ? ' active' : ''}" data-filter="all">${_.filterAll}</button>
+        <button class="filter-btn${currentFilter === 'completed' ? ' active' : ''}" data-filter="completed">${_.filterCompleted}</button>
+        <button class="filter-btn${currentFilter === 'incomplete' ? ' active' : ''}" data-filter="incomplete">${_.filterIncomplete}</button>
       </div>
 
       <div id="achList" class="ach-list"></div>
     `;
+
+    if (searchTerm) $('searchInput').value = searchTerm;
 
     document.querySelectorAll('.filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -641,7 +751,7 @@
 
     const cardEl = document.querySelector(`.cat-card[data-cat-id="${categoryId}"]`);
     const isFirstLoad = !categoryMap;
-    if (isFirstLoad) showStatus('Načítám mapu kategorií (první načtení může trvat až minutu)...', 'loading');
+    if (isFirstLoad) showStatus(t().categoryLoading, 'loading');
     if (cardEl) cardEl.classList.add('loading');
 
     try {
@@ -652,7 +762,7 @@
       renderList();
       if (isFirstLoad) clearStatus();
     } catch (err) {
-      showStatus('Nepodařilo se načíst kategorie: ' + err.message, 'error');
+      showStatus(t().categoryFail + err.message, 'error');
     } finally {
       if (cardEl) cardEl.classList.remove('loading');
     }
@@ -678,15 +788,16 @@
       items = items.filter(a => a.name.toLowerCase().includes(searchTerm));
     }
 
+    const sortLocale = t().sortLocale;
     items.sort((a, b) => {
       if (a.completedAt && b.completedAt) return b.completedAt - a.completedAt;
       if (a.completedAt) return -1;
       if (b.completedAt) return 1;
-      return a.name.localeCompare(b.name, 'cs');
+      return a.name.localeCompare(b.name, sortLocale);
     });
 
     if (items.length === 0) {
-      list.innerHTML = '<div class="status empty">Žádné výsledky odpovídající filtru.</div>';
+      list.innerHTML = `<div class="status empty">${escapeHtml(t().empty)}</div>`;
       return;
     }
 
@@ -716,7 +827,7 @@
   }
   function formatDate(ts) {
     const d = new Date(ts);
-    return d.toLocaleDateString('cs-CZ', { year: 'numeric', month: 'short', day: 'numeric' });
+    return d.toLocaleDateString(t().dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
   }
 </script>
 </body>
