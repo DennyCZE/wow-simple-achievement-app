@@ -41,21 +41,12 @@ if ($clientId === '' || $clientSecret === '') {
 }
 
 // ============================================================
-// Input validation
+// Common input: region + locale (always required)
 // ============================================================
-$realm     = strtolower(trim((string)($_GET['realm']     ?? '')));
-$character = strtolower(trim((string)($_GET['character'] ?? '')));
-$region    = strtolower(trim((string)($_GET['region']    ?? 'eu')));
-$locale    = (string)($_GET['locale'] ?? 'cs_CZ');
+$action = (string)($_GET['action'] ?? 'achievements');
+$region = strtolower(trim((string)($_GET['region'] ?? 'eu')));
+$locale = (string)($_GET['locale'] ?? 'cs_CZ');
 
-$realm = preg_replace('/[^a-z0-9-]/', '-', $realm) ?? '';
-$realm = trim(preg_replace('/-+/', '-', $realm) ?? '', '-');
-
-$character = preg_replace('/[^a-zàáâäçčďéèêëěíìîïľĺňñóòôöŕřšťúùûüůýÿžź0-9-]/u', '', $character) ?? '';
-
-if ($realm === '' || $character === '') {
-    json_error(400, 'Missing or invalid realm/character');
-}
 if (!in_array($region, ['us', 'eu', 'kr', 'tw'], true)) {
     json_error(400, 'Invalid region (use us, eu, kr, or tw)');
 }
@@ -74,6 +65,91 @@ if (!in_array($locale, $allowedLocales, true)) {
 try {
     $cache  = new Cache('/var/www/data/cache.sqlite');
     $client = new BlizzardClient($clientId, $clientSecret, $cache);
+
+    // --------------------------------------------------------
+    // action=category-map: build {categoryId: {name, achievement_ids:[...]}}
+    // covering descendants. Heavy first call (~150 Blizzard calls,
+    // 30-60s); cached 7 days.
+    // --------------------------------------------------------
+    if ($action === 'category-map') {
+        set_time_limit(120);
+
+        $cacheKey = sprintf('catmap:%s:%s', $region, $locale);
+        $cached = $cache->get($cacheKey);
+        if ($cached !== null) {
+            header('X-Cache: HIT');
+            echo $cached;
+            exit;
+        }
+        header('X-Cache: MISS');
+
+        $index   = $client->getAchievementCategoryIndex($region, $locale);
+        $allCats = $index['categories'] ?? [];
+
+        $names              = [];
+        $directAchievements = [];
+        $subcategoryIds     = [];
+
+        foreach ($allCats as $cat) {
+            $catId = (int)($cat['id'] ?? 0);
+            if ($catId === 0) continue;
+            $names[$catId] = (string)($cat['name'] ?? '');
+            try {
+                $detail = $client->getAchievementCategory($region, $locale, $catId);
+                $directAchievements[$catId] = array_map(
+                    fn($a) => (int)($a['id'] ?? 0),
+                    $detail['achievements'] ?? []
+                );
+                $subcategoryIds[$catId] = array_map(
+                    fn($s) => (int)($s['id'] ?? 0),
+                    $detail['subcategories'] ?? []
+                );
+            } catch (Throwable $e) {
+                $directAchievements[$catId] = [];
+                $subcategoryIds[$catId]     = [];
+            }
+        }
+
+        $rolled = [];
+        $rollup = function (int $id) use (&$rollup, &$rolled, $directAchievements, $subcategoryIds): array {
+            if (isset($rolled[$id])) return $rolled[$id];
+            $rolled[$id] = []; // mark visited (cycle guard)
+            $ids = $directAchievements[$id] ?? [];
+            foreach ($subcategoryIds[$id] ?? [] as $subId) {
+                $ids = array_merge($ids, $rollup($subId));
+            }
+            $rolled[$id] = array_values(array_unique($ids));
+            return $rolled[$id];
+        };
+
+        $output = ['categories' => []];
+        foreach (array_keys($names) as $catId) {
+            $output['categories'][(string)$catId] = [
+                'name'            => $names[$catId],
+                'achievement_ids' => $rollup($catId),
+            ];
+        }
+
+        $body = json_encode($output, JSON_UNESCAPED_UNICODE);
+        $cache->set($cacheKey, $body, 7 * 86400);
+        echo $body;
+        exit;
+    }
+
+    // --------------------------------------------------------
+    // action=achievements (default): character achievement summary
+    // --------------------------------------------------------
+    $realm     = strtolower(trim((string)($_GET['realm']     ?? '')));
+    $character = strtolower(trim((string)($_GET['character'] ?? '')));
+
+    $realm = preg_replace('/[^a-z0-9-]/', '-', $realm) ?? '';
+    $realm = trim(preg_replace('/-+/', '-', $realm) ?? '', '-');
+
+    $character = preg_replace('/[^a-zàáâäçčďéèêëěíìîïľĺňñóòôöŕřšťúùûüůýÿžź0-9-]/u', '', $character) ?? '';
+
+    if ($realm === '' || $character === '') {
+        json_error(400, 'Missing or invalid realm/character');
+    }
 
     $cacheKey = sprintf('ach:%s:%s:%s:%s', $region, $realm, $character, $locale);
 

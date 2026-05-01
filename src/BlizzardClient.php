@@ -95,4 +95,54 @@ final class BlizzardClient
 
         return ['status' => (int)$httpCode, 'body' => (string)$body];
     }
+
+    /** @return array<string,mixed> */
+    public function getAchievementCategoryIndex(string $region, string $locale): array
+    {
+        return $this->getJson(sprintf(
+            'https://%s.api.blizzard.com/data/wow/achievement-category/index?namespace=static-%s&locale=%s',
+            $region, $region, rawurlencode($locale)
+        ));
+    }
+
+    /** @return array<string,mixed> */
+    public function getAchievementCategory(string $region, string $locale, int $categoryId): array
+    {
+        return $this->getJson(sprintf(
+            'https://%s.api.blizzard.com/data/wow/achievement-category/%d?namespace=static-%s&locale=%s',
+            $region, $categoryId, $region, rawurlencode($locale)
+        ));
+    }
+
+    /** @return array<string,mixed> */
+    private function getJson(string $url): array
+    {
+        $token = $this->getAccessToken();
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $token],
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_CONNECTTIMEOUT => 5,
+        ]);
+
+        $body     = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err      = curl_error($ch);
+        curl_close($ch);
+
+        if ($body === false) {
+            throw new RuntimeException('Blizzard API request failed: ' . $err);
+        }
+        if ($httpCode !== 200) {
+            throw new RuntimeException(sprintf('Blizzard API HTTP %d for %s', $httpCode, $url));
+        }
+
+        $data = json_decode((string)$body, true);
+        if (!is_array($data)) {
+            throw new RuntimeException('Invalid JSON from Blizzard');
+        }
+        return $data;
+    }
 }

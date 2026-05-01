@@ -103,6 +103,38 @@
   .stat-value { font-size: 1.6rem; font-weight: 600; color: var(--accent); line-height: 1.1; }
   .stat-label { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
 
+  .section-title { font-size: 0.95rem; color: var(--accent); margin: 0 0 8px 0; font-weight: 600; }
+  .cat-section { margin-bottom: 20px; }
+  summary.section-title { cursor: pointer; user-select: none; list-style: none; padding: 4px 0; }
+  summary.section-title::-webkit-details-marker { display: none; }
+  summary.section-title::before {
+    content: '▼';
+    display: inline-block;
+    margin-right: 6px;
+    font-size: 0.7em;
+    transition: transform 0.15s;
+  }
+  .cat-section:not([open]) > summary.section-title::before { transform: rotate(-90deg); }
+  .cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+  }
+  .cat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .cat-card:hover { border-color: var(--accent); }
+  .cat-card.active { border-color: var(--accent); background: var(--panel-2); }
+  .cat-card.loading { opacity: 0.6; cursor: progress; }
+  .cat-name { font-size: 0.9rem; color: var(--text); margin-bottom: 4px; font-weight: 500; }
+  .cat-stats { font-size: 0.8rem; color: var(--muted); }
+  .cat-stats strong { color: var(--accent); font-weight: 600; }
+
   .filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
   .filters input[type="search"] { flex: 1; min-width: 200px; }
   .filter-btn {
@@ -195,6 +227,9 @@
   let allAchievements = [];
   let currentFilter = 'all';
   let searchTerm = '';
+  let activeCategoryId = null;
+  let categoryMap = null;
+  let categoryMapPromise = null;
 
   const $ = id => document.getElementById(id);
   const statusEl  = $('status');
@@ -228,7 +263,11 @@
       .map(h => `<option value="${escapeHtml(h.realm)}">`)
       .join('');
   }
-  $('region').addEventListener('change', renderRealmDatalist);
+  $('region').addEventListener('change', () => {
+    renderRealmDatalist();
+    activeCategoryId = null;
+    categoryMap = null;
+  });
   renderRealmDatalist();
 
   searchBtn.addEventListener('click', loadAchievements);
@@ -301,6 +340,24 @@
     const totalPoints    = data.total_points ?? 0;
     const totalQuantity  = data.total_quantity ?? totalCompleted;
 
+    const categoryProgress = (data.category_progress || [])
+      .slice()
+      .sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
+
+    const categoryHtml = categoryProgress.length ? `
+      <details open class="cat-section">
+        <summary class="section-title">Kategorie</summary>
+        <div class="cat-grid">
+          ${categoryProgress.map(c => `
+            <div class="cat-card${activeCategoryId === c.category?.id ? ' active' : ''}" data-cat-id="${c.category?.id ?? ''}" role="button" tabindex="0">
+              <div class="cat-name">${escapeHtml(c.category?.name || '—')}</div>
+              <div class="cat-stats"><strong>${c.quantity ?? 0}</strong> splněno · <strong>${c.points ?? 0}</strong> bodů</div>
+            </div>
+          `).join('')}
+        </div>
+      </details>
+    ` : '';
+
     resultsEl.innerHTML = `
       <div class="stats">
         <div class="stat-card">
@@ -320,6 +377,8 @@
           <div class="stat-label">Rozpracováno</div>
         </div>
       </div>
+
+      ${categoryHtml}
 
       <div class="filters">
         <input type="search" id="searchInput" placeholder="Hledat achievement...">
@@ -344,7 +403,81 @@
       renderList();
     });
 
+    document.querySelectorAll('.cat-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const id = parseInt(card.dataset.catId, 10);
+        if (Number.isFinite(id)) selectCategory(id);
+      });
+    });
+
     renderList();
+  }
+
+  async function ensureCategoryMap() {
+    const region = $('region').value;
+    const locale = $('locale').value;
+    if (categoryMap && categoryMap.__region === region && categoryMap.__locale === locale) return categoryMap;
+    if (categoryMapPromise) return categoryMapPromise;
+
+    // localStorage cache (7 days, scoped per region+locale)
+    try {
+      const raw = localStorage.getItem('wow_category_map');
+      if (raw) {
+        const cached = JSON.parse(raw);
+        if (cached.region === region && cached.locale === locale && cached.fetched_at > Date.now() - 7 * 86400 * 1000) {
+          categoryMap = { ...cached.categories, __region: region, __locale: locale };
+          return categoryMap;
+        }
+      }
+    } catch {}
+
+    categoryMapPromise = (async () => {
+      const params = new URLSearchParams({ action: 'category-map', region, locale });
+      const res = await fetch(`${API_URL}?${params}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      try {
+        localStorage.setItem('wow_category_map', JSON.stringify({
+          region, locale, fetched_at: Date.now(), categories: data.categories,
+        }));
+      } catch {}
+      categoryMap = { ...data.categories, __region: region, __locale: locale };
+      return categoryMap;
+    })();
+
+    try { return await categoryMapPromise; }
+    finally { categoryMapPromise = null; }
+  }
+
+  async function selectCategory(categoryId) {
+    // Toggle off if already active
+    if (activeCategoryId === categoryId) {
+      activeCategoryId = null;
+      document.querySelectorAll('.cat-card.active').forEach(c => c.classList.remove('active'));
+      renderList();
+      return;
+    }
+
+    const cardEl = document.querySelector(`.cat-card[data-cat-id="${categoryId}"]`);
+    const isFirstLoad = !categoryMap;
+    if (isFirstLoad) showStatus('Načítám mapu kategorií (první načtení může trvat až minutu)...', 'loading');
+    if (cardEl) cardEl.classList.add('loading');
+
+    try {
+      await ensureCategoryMap();
+      activeCategoryId = categoryId;
+      document.querySelectorAll('.cat-card.active').forEach(c => c.classList.remove('active'));
+      if (cardEl) cardEl.classList.add('active');
+      renderList();
+      if (isFirstLoad) clearStatus();
+    } catch (err) {
+      showStatus('Nepodařilo se načíst kategorie: ' + err.message, 'error');
+    } finally {
+      if (cardEl) cardEl.classList.remove('loading');
+    }
   }
 
   function renderList() {
@@ -354,6 +487,14 @@
     let items = allAchievements;
     if (currentFilter === 'completed') items = items.filter(a => a.completedAt);
     else if (currentFilter === 'incomplete') items = items.filter(a => !a.completedAt);
+
+    if (activeCategoryId !== null && categoryMap) {
+      const catData = categoryMap[String(activeCategoryId)];
+      if (catData) {
+        const allowed = new Set(catData.achievement_ids);
+        items = items.filter(a => allowed.has(a.id));
+      }
+    }
 
     if (searchTerm) {
       items = items.filter(a => a.name.toLowerCase().includes(searchTerm));
