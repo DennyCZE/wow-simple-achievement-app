@@ -1,0 +1,18 @@
+services:
+  wow-app:
+    build: .
+    container_name: wow-app
+    restart: unless-stopped
+    environment:
+      BNET_CLIENT_ID:     "${BNET_CLIENT_ID}"
+      BNET_CLIENT_SECRET: "${BNET_CLIENT_SECRET}"
+      CACHE_TTL:          "${CACHE_TTL:-3600}"
+      ALLOWED_ORIGIN:     "${ALLOWED_ORIGIN:-}"
+    volumes:
+      - wow-data:/var/www/data
+    ports:
+      # Bind only to localhost — host nginx proxies to this
+      - "127.0.0.1:${HOST_PORT:-8089}:80"
+
+volumes:
+  wow-data:

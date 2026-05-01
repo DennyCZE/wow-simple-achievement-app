@@ -1,0 +1,18 @@
+# Secrets / personal
+.env
+README.private.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors / IDEs
+.idea/
+.vscode/
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Logs
+*.log
