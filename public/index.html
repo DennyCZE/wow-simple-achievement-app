@@ -132,10 +132,13 @@
   }
   .ach-item.completed { border-left: 3px solid var(--success); }
   .ach-item.incomplete { border-left: 3px solid var(--muted); opacity: 0.85; }
-  .ach-name { font-weight: 500; }
+  .ach-name { font-weight: 500; color: var(--text); text-decoration: none; }
+  .ach-name:hover { color: var(--accent); }
   .ach-id { font-size: 0.75rem; color: var(--muted); margin-left: 8px; }
   .ach-date { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
 </style>
+<script>window.whTooltips = { colorLinks: true, iconizeLinks: true, renameLinks: false };</script>
+<script async src="https://www.wowhead.com/widgets/power.js"></script>
 </head>
 <body>
 <div class="container">
@@ -153,7 +156,8 @@
       </div>
       <div>
         <label for="realm">Realm / Server</label>
-        <input type="text" id="realm" placeholder="např. Argent Dawn" autocomplete="off">
+        <input type="text" id="realm" placeholder="např. Argent Dawn" autocomplete="off" list="realm-history">
+        <datalist id="realm-history"></datalist>
       </div>
     </div>
     <div class="form-row-3">
@@ -204,6 +208,29 @@
     $(id).addEventListener('change', () => localStorage.setItem('wow_' + id, $(id).value));
   });
 
+  // Realm autocomplete from per-region search history
+  const REALM_HISTORY_KEY = 'wow_realm_history';
+  const REALM_HISTORY_MAX = 10;
+
+  function getRealmHistory() {
+    try { return JSON.parse(localStorage.getItem(REALM_HISTORY_KEY) || '[]'); }
+    catch { return []; }
+  }
+  function pushRealmHistory(realm, region) {
+    const hist = getRealmHistory().filter(h => !(h.realm === realm && h.region === region));
+    hist.unshift({ realm, region });
+    localStorage.setItem(REALM_HISTORY_KEY, JSON.stringify(hist.slice(0, REALM_HISTORY_MAX)));
+  }
+  function renderRealmDatalist() {
+    const region = $('region').value;
+    $('realm-history').innerHTML = getRealmHistory()
+      .filter(h => h.region === region)
+      .map(h => `<option value="${escapeHtml(h.realm)}">`)
+      .join('');
+  }
+  $('region').addEventListener('change', renderRealmDatalist);
+  renderRealmDatalist();
+
   searchBtn.addEventListener('click', loadAchievements);
   $('character').addEventListener('keydown', e => { if (e.key === 'Enter') loadAchievements(); });
   $('realm').addEventListener('keydown', e => { if (e.key === 'Enter') loadAchievements(); });
@@ -251,6 +278,8 @@
       }
 
       renderResults(data);
+      pushRealmHistory(realm, region);
+      renderRealmDatalist();
       clearStatus();
     } catch (err) {
       showStatus('Chyba spojení: ' + err.message, 'error');
@@ -345,7 +374,7 @@
     list.innerHTML = items.map(a => `
       <div class="ach-item ${a.completedAt ? 'completed' : 'incomplete'}">
         <div>
-          <span class="ach-name">${escapeHtml(a.name)}</span>
+          <a class="ach-name" href="https://www.wowhead.com/achievement=${a.id}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.name)}</a>
           <span class="ach-id">#${a.id}</span>
         </div>
         <div class="ach-date">
@@ -353,6 +382,8 @@
         </div>
       </div>
     `).join('');
+
+    if (window.$WowheadPower) window.$WowheadPower.refreshLinks();
   }
 
   function showStatus(msg, type) {
