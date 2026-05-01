@@ -105,7 +105,8 @@ try {
     if ($action === 'category-map') {
         set_time_limit(120);
 
-        $cacheKey = sprintf('catmap:%s:%s', $region, $locale);
+        // catmap4 — adds English-locale fallback for untranslated category names
+        $cacheKey = sprintf('catmap4:%s:%s', $region, $locale);
         $cached = $cache->get($cacheKey);
         if ($cached !== null) {
             header('X-Cache: HIT');
@@ -116,17 +117,35 @@ try {
 
         $index   = $client->getAchievementCategoryIndex($region, $locale);
         $allCats = $index['categories'] ?? [];
+        $rootIds = array_values(array_filter(array_map(
+            fn($r) => (int)($r['id'] ?? 0),
+            $index['root_categories'] ?? []
+        ), fn($id) => $id > 0));
 
         $names              = [];
         $directAchievements = [];
         $subcategoryIds     = [];
 
+        $resolveName = static function ($val, string $locale): string {
+            if (is_string($val)) return $val;
+            if (is_array($val)) {
+                foreach ([$locale, 'en_US', 'en_GB'] as $key) {
+                    if (isset($val[$key]) && is_string($val[$key])) return $val[$key];
+                }
+                foreach ($val as $v) {
+                    if (is_string($v) && $v !== '') return $v;
+                }
+            }
+            return '';
+        };
+
         foreach ($allCats as $cat) {
             $catId = (int)($cat['id'] ?? 0);
             if ($catId === 0) continue;
-            $names[$catId] = (string)($cat['name'] ?? '');
+            $name = '';
             try {
                 $detail = $client->getAchievementCategory($region, $locale, $catId);
+                $name   = $resolveName($detail['name'] ?? null, $locale);
                 $directAchievements[$catId] = array_map(
                     fn($a) => (int)($a['id'] ?? 0),
                     $detail['achievements'] ?? []
@@ -139,6 +158,17 @@ try {
                 $directAchievements[$catId] = [];
                 $subcategoryIds[$catId]     = [];
             }
+            // Fall back to English when the requested locale has no translation
+            if ($name === '' && $locale !== 'en_US') {
+                try {
+                    $detailEn = $client->getAchievementCategory($region, 'en_US', $catId);
+                    $name     = $resolveName($detailEn['name'] ?? null, 'en_US');
+                } catch (Throwable $e) {}
+            }
+            // Index name as another fallback (in case detail fetches failed)
+            if ($name === '') $name = $resolveName($cat['name'] ?? null, $locale);
+            if ($name === '') $name = 'Category #' . $catId;
+            $names[$catId] = $name;
         }
 
         $rolled = [];
@@ -153,10 +183,11 @@ try {
             return $rolled[$id];
         };
 
-        $output = ['categories' => []];
+        $output = ['root_ids' => $rootIds, 'categories' => []];
         foreach (array_keys($names) as $catId) {
             $output['categories'][(string)$catId] = [
                 'name'            => $names[$catId],
+                'subcategory_ids' => $subcategoryIds[$catId] ?? [],
                 'achievement_ids' => $rollup($catId),
             ];
         }

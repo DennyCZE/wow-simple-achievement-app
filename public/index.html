@@ -375,6 +375,366 @@
   }
   .fav-toggle:hover { border-color: var(--gold); filter: none; }
   .fav-toggle.is-fav { color: var(--gold); border-color: var(--gold); }
+
+  /* ================================================== */
+  /* In-game-style achievement window layout            */
+  /* ================================================== */
+  :root {
+    --parchment:      #e8d5a0;
+    --parchment-2:    #dcc78b;
+    --parchment-3:    #c9b075;
+    --parchment-edge: #8a6a2f;
+    --parchment-text: #3a2014;
+    --parchment-muted:#6f4f29;
+    --banner-bg:      #1c4a2c;
+    --banner-bg-2:    #143a22;
+    --banner-text:    #f0d59a;
+    --bar-track:      #5a4a2a;
+    --bar-fill:       #4a8a3a;
+    --bar-fill-2:     #6dba48;
+  }
+
+  .window {
+    background: linear-gradient(180deg, #2a1810 0%, #1a0f06 100%);
+    border: 3px solid var(--gold-deep);
+    border-radius: 4px;
+    padding: 12px;
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.5),
+      0 6px 28px rgba(0, 0, 0, 0.7);
+  }
+
+  .window-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 16px 14px 16px;
+    border-bottom: 1px solid var(--gold-deep);
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .points-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .points-label {
+    font-family: var(--serif-display);
+    font-size: 0.78rem;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .points-value {
+    font-family: var(--serif-display);
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: var(--gold);
+    line-height: 1;
+    text-shadow: 0 0 18px rgba(240, 196, 25, 0.45), 0 2px 4px rgba(0,0,0,0.7);
+  }
+  .points-value::after {
+    content: ' \2756';
+    font-size: 0.6em;
+    margin-left: 6px;
+    color: var(--gold);
+    opacity: 0.8;
+  }
+  .window-header input[type="search"] {
+    width: 240px;
+    max-width: 100%;
+    padding: 6px 10px;
+    background: rgba(232, 213, 160, 0.95);
+    border: 1px solid var(--parchment-edge);
+    border-radius: 2px;
+    color: var(--parchment-text);
+    font-family: var(--serif-body);
+    font-size: 0.95rem;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .window-header input[type="search"]::placeholder {
+    color: var(--parchment-muted);
+    font-style: italic;
+  }
+  .window-header input[type="search"]:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), 0 0 0 1px var(--gold);
+  }
+
+  .window-body {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  @media (max-width: 720px) {
+    .window-body { grid-template-columns: 1fr; }
+  }
+
+  .sidebar {
+    background: linear-gradient(180deg, var(--parchment-2) 0%, var(--parchment-3) 100%);
+    border: 1px solid var(--parchment-edge);
+    border-radius: 2px;
+    padding: 6px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15), inset 0 0 12px rgba(0,0,0,0.1);
+    color: var(--parchment-text);
+    font-family: var(--serif-body);
+  }
+  .sidebar-item {
+    display: block;
+    padding: 6px 10px;
+    border-radius: 2px;
+    cursor: pointer;
+    color: var(--parchment-text);
+    font-size: 0.95rem;
+    line-height: 1.3;
+    transition: background 0.12s, color 0.12s;
+    list-style: none;
+    user-select: none;
+  }
+  .sidebar-item::-webkit-details-marker { display: none; }
+  .sidebar-item:hover {
+    background: rgba(255, 255, 255, 0.35);
+  }
+  .sidebar-item.active {
+    background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-2) 100%);
+    box-shadow: inset 0 0 0 1px rgba(138, 106, 47, 0.5);
+    font-weight: 600;
+    color: #4a2810;
+  }
+  .sidebar-group { margin: 0; }
+  .sidebar-group > summary { position: relative; padding-right: 22px; }
+  .sidebar-group > summary::after {
+    content: '▸';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--parchment-muted);
+    transition: transform 0.15s;
+  }
+  .sidebar-group[open] > summary::after { transform: translateY(-50%) rotate(90deg); }
+  .sidebar-subs {
+    margin: 2px 0 4px 12px;
+    padding-left: 6px;
+    border-left: 1px solid var(--parchment-edge);
+  }
+  .sidebar-subitem {
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 2px;
+    font-size: 0.88rem;
+    color: var(--parchment-muted);
+    transition: background 0.12s, color 0.12s;
+  }
+  .sidebar-subitem:hover { background: rgba(255, 255, 255, 0.3); color: var(--parchment-text); }
+  .sidebar-subitem.active {
+    background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-2) 100%);
+    color: #4a2810;
+    font-weight: 600;
+  }
+
+  .content {
+    background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-2) 100%);
+    border: 1px solid var(--parchment-edge);
+    border-radius: 2px;
+    padding: 12px;
+    color: var(--parchment-text);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12), inset 0 0 16px rgba(0,0,0,0.08);
+    min-height: 320px;
+  }
+
+  .banner {
+    background: linear-gradient(180deg, var(--banner-bg) 0%, var(--banner-bg-2) 100%);
+    color: var(--banner-text);
+    font-family: var(--serif-display);
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    text-align: center;
+    padding: 8px 14px;
+    border: 1px solid var(--parchment-edge);
+    border-radius: 2px;
+    margin: 8px 0 10px 0;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.1),
+      0 1px 0 rgba(0,0,0,0.2);
+  }
+
+  /* Recent achievements (summary view) */
+  .recent-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+  .recent-item {
+    display: grid;
+    grid-template-columns: 44px 1fr auto auto;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-2) 100%);
+    border: 1px solid var(--parchment-edge);
+    border-radius: 2px;
+    padding: 6px 10px;
+  }
+  .recent-item:nth-child(even) {
+    background: linear-gradient(180deg, var(--parchment-2) 0%, var(--parchment-3) 100%);
+  }
+  .recent-icon, .ach-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, #6e4f2a 0%, #3a2818 100%);
+    border: 1px solid var(--parchment-edge);
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gold);
+    font-size: 1.2rem;
+    box-shadow: inset 0 0 6px rgba(0,0,0,0.4);
+  }
+  .recent-name {
+    font-family: var(--serif-display);
+    font-weight: 700;
+    color: #5a3010;
+    text-decoration: none;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+  }
+  .recent-name:hover { color: #1a0d04; }
+  .recent-date {
+    color: var(--gold);
+    font-size: 0.85rem;
+    font-style: italic;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.5);
+    background: linear-gradient(180deg, #3a2818 0%, #1f1409 100%);
+    padding: 2px 8px;
+    border-radius: 2px;
+    border: 1px solid var(--gold-deep);
+  }
+  .recent-points {
+    background: linear-gradient(180deg, #3a2818 0%, #1f1409 100%);
+    color: var(--gold);
+    font-family: var(--serif-display);
+    font-weight: 700;
+    padding: 4px 10px;
+    border: 1px solid var(--gold-deep);
+    border-radius: 2px;
+    min-width: 36px;
+    text-align: center;
+  }
+
+  /* Progress overview (summary view) */
+  .progress-total {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(180deg, #3a2818 0%, #1f1409 100%);
+    border: 1px solid var(--parchment-edge);
+    border-radius: 2px;
+    padding: 6px 12px;
+    margin-bottom: 8px;
+  }
+  .progress-total-label {
+    font-family: var(--serif-display);
+    color: var(--gold);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.95rem;
+  }
+  .progress-total-value {
+    font-family: var(--serif-display);
+    color: var(--gold);
+    font-weight: 700;
+    font-size: 1.05rem;
+  }
+
+  .progress-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  @media (max-width: 600px) { .progress-grid { grid-template-columns: 1fr; } }
+  .progress-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(180deg, #3a2818 0%, #1f1409 100%);
+    border: 1px solid var(--parchment-edge);
+    border-radius: 2px;
+    padding: 5px 12px;
+    color: var(--text);
+    font-family: var(--serif-display);
+    font-weight: 500;
+    font-size: 0.9rem;
+    letter-spacing: 0.04em;
+  }
+  .progress-item-name { text-transform: none; }
+  .progress-item-value { color: var(--gold); font-weight: 700; }
+
+  /* Achievement list inside content panel (parchment-styled) */
+  .content .filters { padding: 0 0 8px 0; }
+  .content .filter-btn {
+    background: linear-gradient(180deg, var(--parchment-2) 0%, var(--parchment-3) 100%);
+    color: var(--parchment-text);
+    border: 1px solid var(--parchment-edge);
+  }
+  .content .filter-btn:hover { border-color: #4a2810; filter: brightness(1.05); }
+  .content .filter-btn.active {
+    background: linear-gradient(180deg, #f0c419 0%, #c89316 100%);
+    color: #1a0d04;
+    border-color: var(--gold-deep);
+  }
+
+  .content .ach-list { gap: 3px; }
+  .content .ach-item {
+    background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-2) 100%);
+    border: 1px solid var(--parchment-edge);
+    border-left: 4px solid var(--parchment-edge);
+    border-radius: 2px;
+    padding: 6px 10px;
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    box-shadow: none;
+  }
+  .content .ach-item:nth-child(even) {
+    background: linear-gradient(180deg, var(--parchment-2) 0%, var(--parchment-3) 100%);
+  }
+  .content .ach-item:hover {
+    border-color: #4a2810;
+    box-shadow: 0 0 8px rgba(74, 40, 16, 0.25);
+  }
+  .content .ach-item.completed { border-left-color: var(--bar-fill); }
+  .content .ach-item.incomplete { border-left-color: var(--parchment-edge); opacity: 0.78; }
+  .content .ach-name {
+    font-family: var(--serif-display);
+    color: #5a3010;
+    font-weight: 700;
+    font-size: 0.98rem;
+  }
+  .content .ach-name:hover { color: #1a0d04; }
+  .content .ach-id {
+    color: var(--parchment-muted);
+    font-style: italic;
+  }
+  .content .ach-date {
+    color: var(--gold);
+    background: linear-gradient(180deg, #3a2818 0%, #1f1409 100%);
+    padding: 2px 8px;
+    border: 1px solid var(--gold-deep);
+    border-radius: 2px;
+    font-size: 0.8rem;
+    font-style: italic;
+  }
+  .content .status.empty {
+    background: rgba(58, 32, 20, 0.1);
+    border: 1px dashed var(--parchment-edge);
+    color: var(--parchment-muted);
+  }
 </style>
 <script>window.whTooltips = { colorLinks: true, iconizeLinks: true, renameLinks: false };</script>
 <script async src="https://www.wowhead.com/widgets/power.js"></script>
@@ -430,23 +790,37 @@
   </div>
 
   <div id="status"></div>
-  <div id="results"></div>
+
+  <div id="window-wrap" style="display:none;">
+    <div class="window">
+      <div class="window-header">
+        <div class="points-block">
+          <div class="points-label" id="pointsLabel">Achievement Points</div>
+          <div class="points-value" id="pointsValue">0</div>
+        </div>
+        <input type="search" id="searchInput" placeholder="">
+      </div>
+      <div class="window-body">
+        <aside class="sidebar" id="sidebar"></aside>
+        <main class="content" id="content"></main>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
   const API_URL = 'api.php';
 
-  let allAchievements = [];
   let currentFilter = 'all';
   let searchTerm = '';
-  let activeCategoryId = null;
-  let categoryMap = null;
+  let currentView = 'summary';      // 'summary' or category id (number)
+  let categoryData = null;           // { region, locale, fetched_at, root_ids, categories }
   let categoryMapPromise = null;
   let lastResultsData = null;
 
   const $ = id => document.getElementById(id);
   const statusEl  = $('status');
-  const resultsEl = $('results');
   const searchBtn = $('searchBtn');
   const cacheBadge = $('cacheBadge');
 
@@ -479,12 +853,12 @@
       statusError: 'Chyba',
       statusConn: 'Chyba spojení: ',
       statusNotFound: (c, r) => `Postava "${c}" na realmu "${r}" nebyla nalezena. Zkontroluj jméno a server.`,
-      statTotalCompleted: 'Splněno celkem',
-      statPoints: 'Bodů',
-      statKnown: 'V seznamu',
-      statIncomplete: 'Rozpracováno',
-      categoriesTitle: 'Kategorie',
-      categoryStats: (q, p) => `<strong>${q}</strong> splněno · <strong>${p}</strong> bodů`,
+      pointsTitle: 'Achievement Points',
+      summaryView: 'Souhrn',
+      recentTitle: 'Nedávné achievementy',
+      progressTitle: 'Přehled postupu',
+      totalEarned: 'Achievementů získáno',
+      searchResults: 'Hledání',
       categoryLoading: 'Načítám mapu kategorií (první načtení může trvat až minutu)...',
       categoryFail: 'Nepodařilo se načíst kategorie: ',
       searchPlaceholder: 'Hledat achievement...',
@@ -516,12 +890,12 @@
       statusError: 'Error',
       statusConn: 'Connection error: ',
       statusNotFound: (c, r) => `Character "${c}" on realm "${r}" not found. Check the spelling.`,
-      statTotalCompleted: 'Total completed',
-      statPoints: 'Points',
-      statKnown: 'On list',
-      statIncomplete: 'In progress',
-      categoriesTitle: 'Categories',
-      categoryStats: (q, p) => `<strong>${q}</strong> done · <strong>${p}</strong> pts`,
+      pointsTitle: 'Achievement Points',
+      summaryView: 'Summary',
+      recentTitle: 'Recent Achievements',
+      progressTitle: 'Progress Overview',
+      totalEarned: 'Achievements Earned',
+      searchResults: 'Search',
       categoryLoading: 'Loading category map (first load may take up to a minute)...',
       categoryFail: 'Failed to load categories: ',
       searchPlaceholder: 'Search achievement...',
@@ -550,9 +924,14 @@
     if (!searchBtn.disabled) searchBtn.textContent = _.submit;
     $('character').placeholder = _.placeholderCharacter;
     $('realm').placeholder = _.placeholderRealm;
+    $('pointsLabel').textContent = _.pointsTitle;
+    $('searchInput').placeholder = _.searchPlaceholder;
     document.documentElement.lang = uiLang();
     updateFavToggle();
-    if (lastResultsData) renderResults(lastResultsData);
+    if (lastResultsData) {
+      renderSidebar();
+      renderContent();
+    }
   }
 
   // Realm autocomplete from Battle.net realm index (cached per region+locale)
@@ -600,8 +979,9 @@
   }
   $('region').addEventListener('change', () => {
     renderRealmDatalist();
-    activeCategoryId = null;
-    categoryMap = null;
+    currentView = 'summary';
+    categoryData = null;
+    if (lastResultsData) { renderSidebar(); renderContent(); }
   });
   $('locale').addEventListener('change', () => {
     renderRealmDatalist();
@@ -671,8 +1051,8 @@
         localStorage.setItem('wow_realm', f.realm);
         localStorage.setItem('wow_region', f.region);
         if (regionChanged) {
-          activeCategoryId = null;
-          categoryMap = null;
+          currentView = 'summary';
+          categoryData = null;
           renderRealmDatalist();
         }
         loadAchievements();
@@ -719,6 +1099,36 @@
   $('character').addEventListener('keydown', e => { if (e.key === 'Enter') loadAchievements(); });
   $('realm').addEventListener('keydown', e => { if (e.key === 'Enter') loadAchievements(); });
 
+  // Static event listeners on the always-present window header / sidebar / content
+  $('searchInput').addEventListener('input', e => {
+    searchTerm = e.target.value.toLowerCase().trim();
+    renderContent();
+  });
+  $('content').addEventListener('click', e => {
+    const btn = e.target.closest('.filter-btn');
+    if (btn) {
+      currentFilter = btn.dataset.filter;
+      renderContent();
+    }
+  });
+  $('sidebar').addEventListener('click', e => {
+    const item = e.target.closest('.sidebar-item, .sidebar-subitem');
+    if (!item) return;
+    if (item.dataset.view === 'summary') {
+      currentView = 'summary';
+    } else if (item.dataset.catId) {
+      currentView = parseInt(item.dataset.catId, 10);
+      if (!categoryData) {
+        showStatus(t().categoryLoading, 'loading');
+        ensureCategoryMap()
+          .then(() => { clearStatus(); renderSidebar(); renderContent(); })
+          .catch(err => showStatus(t().categoryFail + err.message, 'error'));
+      }
+    }
+    renderSidebar();
+    renderContent();
+  });
+
   async function loadAchievements() {
     const character = $('character').value.trim();
     const realm     = $('realm').value.trim();
@@ -736,7 +1146,6 @@
     searchBtn.disabled = true;
     searchBtn.textContent = t().submitLoading;
     showStatus(t().statusLoading, 'loading');
-    resultsEl.innerHTML = '';
     cacheBadge.textContent = '';
     cacheBadge.className = 'cache-badge';
 
@@ -762,7 +1171,21 @@
       }
 
       lastResultsData = data;
-      renderResults(data);
+      currentView = 'summary';
+      currentFilter = 'all';
+      searchTerm = '';
+      $('searchInput').value = '';
+      $('window-wrap').style.display = 'block';
+      $('pointsValue').textContent = (data.total_points ?? 0).toLocaleString(t().dateLocale);
+
+      // Background-fetch the full category tree; sidebar + progress refine when it lands.
+      ensureCategoryMap().then(() => {
+        renderSidebar();
+        renderContent();
+      }).catch(() => {});
+
+      renderSidebar();
+      renderContent();
       updateFavToggle();
       clearStatus();
     } catch (err) {
@@ -773,109 +1196,199 @@
     }
   }
 
-  function renderResults(data) {
-    allAchievements = (data.achievements || []).map(a => ({
+  function renderSidebar() {
+    const _ = t();
+    const sidebar = $('sidebar');
+    let html = `<div class="sidebar-item${currentView === 'summary' ? ' active' : ''}" data-view="summary">${escapeHtml(_.summaryView)}</div>`;
+
+    if (categoryData && categoryData.root_ids && categoryData.root_ids.length) {
+      for (const rootId of categoryData.root_ids) {
+        const cat = categoryData.categories[String(rootId)];
+        if (!cat) continue;
+        const subs = (cat.subcategory_ids || [])
+          .map(id => ({ id, ...(categoryData.categories[String(id)] || {}) }))
+          .filter(s => s.name);
+        const isActiveRoot = currentView === rootId;
+        const isActiveSub = subs.some(s => currentView === s.id);
+
+        if (subs.length === 0) {
+          html += `<div class="sidebar-item${isActiveRoot ? ' active' : ''}" data-cat-id="${rootId}">${escapeHtml(cat.name)}</div>`;
+        } else {
+          html += `<details class="sidebar-group"${isActiveRoot || isActiveSub ? ' open' : ''}>`
+                + `<summary class="sidebar-item${isActiveRoot ? ' active' : ''}" data-cat-id="${rootId}">${escapeHtml(cat.name)}</summary>`
+                + `<div class="sidebar-subs">`
+                + subs.map(sub => `<div class="sidebar-subitem${currentView === sub.id ? ' active' : ''}" data-cat-id="${sub.id}">${escapeHtml(sub.name)}</div>`).join('')
+                + `</div></details>`;
+        }
+      }
+    } else if (lastResultsData) {
+      // Fallback while the full category tree is still loading
+      const seen = new Set();
+      for (const c of (lastResultsData.category_progress || [])) {
+        const id = c.category?.id;
+        const name = c.category?.name;
+        if (!id || !name || seen.has(id)) continue;
+        seen.add(id);
+        html += `<div class="sidebar-item${currentView === id ? ' active' : ''}" data-cat-id="${id}">${escapeHtml(name)}</div>`;
+      }
+    }
+
+    sidebar.innerHTML = html;
+  }
+
+  function renderContent() {
+    const content = $('content');
+    if (!lastResultsData) { content.innerHTML = ''; return; }
+
+    if (currentView === 'summary' && !searchTerm) {
+      content.innerHTML = renderSummaryView();
+    } else {
+      content.innerHTML = renderListView();
+    }
+
+    if (window.$WowheadPower) window.$WowheadPower.refreshLinks();
+  }
+
+  function renderSummaryView() {
+    const _ = t();
+    const data = lastResultsData;
+
+    const recent = (data.achievements || [])
+      .filter(a => a.completed_timestamp)
+      .sort((a, b) => b.completed_timestamp - a.completed_timestamp)
+      .slice(0, 4);
+
+    const recentHtml = recent.map(a => {
+      const id = a.id;
+      const name = a.achievement?.name || `#${id}`;
+      return `
+        <div class="recent-item">
+          <div class="recent-icon">⚔</div>
+          <div class="recent-body">
+            <a class="recent-name" href="https://www.wowhead.com/achievement=${id}" target="_blank" rel="noopener noreferrer">${escapeHtml(name)}</a>
+          </div>
+          <div class="recent-date">${formatDate(a.completed_timestamp)}</div>
+        </div>
+      `;
+    }).join('');
+
+    const progress = (data.category_progress || []).slice().sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
+    const totalQuantity = data.total_quantity ?? 0;
+    let totalPossible = null;
+    if (categoryData) {
+      const all = new Set();
+      for (const id of (categoryData.root_ids || [])) {
+        const cat = categoryData.categories[String(id)];
+        if (cat?.achievement_ids) cat.achievement_ids.forEach(x => all.add(x));
+      }
+      totalPossible = all.size || null;
+    }
+
+    const progressHtml = progress.map(c => {
+      const name = c.category?.name || '—';
+      const id = c.category?.id;
+      const q = c.quantity ?? 0;
+      const possible = id && categoryData?.categories?.[String(id)]?.achievement_ids?.length;
+      return `
+        <div class="progress-item">
+          <span class="progress-item-name">${escapeHtml(name)}</span>
+          <span class="progress-item-value">${q}${possible ? '/' + possible : ''}</span>
+        </div>
+      `;
+    }).join('');
+
+    const recentBlock = recent.length ? `
+      <h3 class="banner">${escapeHtml(_.recentTitle)}</h3>
+      <div class="recent-list">${recentHtml}</div>
+    ` : '';
+
+    return `
+      ${recentBlock}
+      <h3 class="banner">${escapeHtml(_.progressTitle)}</h3>
+      <div class="progress-total">
+        <span class="progress-total-label">${escapeHtml(_.totalEarned)}</span>
+        <span class="progress-total-value">${totalQuantity}${totalPossible ? '/' + totalPossible : ''}</span>
+      </div>
+      <div class="progress-grid">${progressHtml}</div>
+    `;
+  }
+
+  function renderListView() {
+    const _ = t();
+    const allAch = (lastResultsData.achievements || []).map(a => ({
       id: a.id,
-      name: a.achievement?.name || `Achievement #${a.id}`,
+      name: a.achievement?.name || `#${a.id}`,
       completedAt: a.completed_timestamp || null,
     }));
 
-    const totalCompleted = allAchievements.filter(a => a.completedAt).length;
-    const totalKnown     = allAchievements.length;
-    const totalPoints    = data.total_points ?? 0;
-    const totalQuantity  = data.total_quantity ?? totalCompleted;
+    let items = allAch;
+    let title = '';
 
-    const categoryProgress = (data.category_progress || [])
-      .slice()
-      .sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
+    if (typeof currentView === 'number' && categoryData?.categories?.[String(currentView)]) {
+      const cat = categoryData.categories[String(currentView)];
+      title = cat.name;
+      const allowed = new Set(cat.achievement_ids);
+      items = items.filter(a => allowed.has(a.id));
+    } else if (typeof currentView === 'number') {
+      const c = lastResultsData.category_progress?.find(p => p.category?.id === currentView);
+      title = c?.category?.name || '';
+    } else if (currentView === 'summary' && searchTerm) {
+      title = _.searchResults;
+    }
 
-    const _ = t();
+    if (currentFilter === 'completed') items = items.filter(a => a.completedAt);
+    else if (currentFilter === 'incomplete') items = items.filter(a => !a.completedAt);
 
-    const categoryHtml = categoryProgress.length ? `
-      <details open class="cat-section">
-        <summary class="section-title">${_.categoriesTitle}</summary>
-        <div class="cat-grid">
-          ${categoryProgress.map(c => `
-            <div class="cat-card${activeCategoryId === c.category?.id ? ' active' : ''}" data-cat-id="${c.category?.id ?? ''}" role="button" tabindex="0">
-              <div class="cat-name">${escapeHtml(c.category?.name || '—')}</div>
-              <div class="cat-stats">${_.categoryStats(c.quantity ?? 0, c.points ?? 0)}</div>
-            </div>
-          `).join('')}
-        </div>
-      </details>
-    ` : '';
+    if (searchTerm) items = items.filter(a => a.name.toLowerCase().includes(searchTerm));
 
-    resultsEl.innerHTML = `
-      <div class="stats">
-        <div class="stat-card">
-          <div class="stat-value">${totalQuantity}</div>
-          <div class="stat-label">${_.statTotalCompleted}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">${totalPoints}</div>
-          <div class="stat-label">${_.statPoints}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">${totalKnown}</div>
-          <div class="stat-label">${_.statKnown}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">${totalKnown - totalCompleted}</div>
-          <div class="stat-label">${_.statIncomplete}</div>
-        </div>
-      </div>
+    const sortLocale = _.sortLocale;
+    items.sort((a, b) => {
+      if (a.completedAt && b.completedAt) return b.completedAt - a.completedAt;
+      if (a.completedAt) return -1;
+      if (b.completedAt) return 1;
+      return a.name.localeCompare(b.name, sortLocale);
+    });
 
-      ${categoryHtml}
-
+    const filtersHtml = `
       <div class="filters">
-        <input type="search" id="searchInput" placeholder="${_.searchPlaceholder}">
         <button class="filter-btn${currentFilter === 'all' ? ' active' : ''}" data-filter="all">${_.filterAll}</button>
         <button class="filter-btn${currentFilter === 'completed' ? ' active' : ''}" data-filter="completed">${_.filterCompleted}</button>
         <button class="filter-btn${currentFilter === 'incomplete' ? ' active' : ''}" data-filter="incomplete">${_.filterIncomplete}</button>
       </div>
-
-      <div id="achList" class="ach-list"></div>
     `;
+    const banner = title ? `<h3 class="banner">${escapeHtml(title)}</h3>` : '';
 
-    if (searchTerm) $('searchInput').value = searchTerm;
+    if (items.length === 0) {
+      return `${banner}${filtersHtml}<div class="status empty">${escapeHtml(_.empty)}</div>`;
+    }
 
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentFilter = btn.dataset.filter;
-        renderList();
-      });
-    });
-    $('searchInput').addEventListener('input', e => {
-      searchTerm = e.target.value.toLowerCase();
-      renderList();
-    });
+    const listHtml = items.map(a => `
+      <div class="ach-item ${a.completedAt ? 'completed' : 'incomplete'}">
+        <div class="ach-icon">⚔</div>
+        <div>
+          <a class="ach-name" href="https://www.wowhead.com/achievement=${a.id}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.name)}</a>
+          <span class="ach-id">#${a.id}</span>
+        </div>
+        <div class="ach-date">${a.completedAt ? formatDate(a.completedAt) : '—'}</div>
+      </div>
+    `).join('');
 
-    document.querySelectorAll('.cat-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const id = parseInt(card.dataset.catId, 10);
-        if (Number.isFinite(id)) selectCategory(id);
-      });
-    });
-
-    renderList();
+    return `${banner}${filtersHtml}<div class="ach-list">${listHtml}</div>`;
   }
 
   async function ensureCategoryMap() {
     const region = $('region').value;
     const locale = $('locale').value;
-    if (categoryMap && categoryMap.__region === region && categoryMap.__locale === locale) return categoryMap;
+    if (categoryData && categoryData.region === region && categoryData.locale === locale) return categoryData;
     if (categoryMapPromise) return categoryMapPromise;
 
-    // localStorage cache (7 days, scoped per region+locale)
     try {
-      const raw = localStorage.getItem('wow_category_map');
+      const raw = localStorage.getItem('wow_category_map_v4');
       if (raw) {
         const cached = JSON.parse(raw);
         if (cached.region === region && cached.locale === locale && cached.fetched_at > Date.now() - 7 * 86400 * 1000) {
-          categoryMap = { ...cached.categories, __region: region, __locale: locale };
-          return categoryMap;
+          categoryData = cached;
+          return categoryData;
         }
       }
     } catch {}
@@ -888,93 +1401,19 @@
         throw new Error(err.error || `HTTP ${res.status}`);
       }
       const data = await res.json();
+      categoryData = {
+        region, locale, fetched_at: Date.now(),
+        root_ids: data.root_ids || [],
+        categories: data.categories || {},
+      };
       try {
-        localStorage.setItem('wow_category_map', JSON.stringify({
-          region, locale, fetched_at: Date.now(), categories: data.categories,
-        }));
+        localStorage.setItem('wow_category_map_v4', JSON.stringify(categoryData));
       } catch {}
-      categoryMap = { ...data.categories, __region: region, __locale: locale };
-      return categoryMap;
+      return categoryData;
     })();
 
     try { return await categoryMapPromise; }
     finally { categoryMapPromise = null; }
-  }
-
-  async function selectCategory(categoryId) {
-    // Toggle off if already active
-    if (activeCategoryId === categoryId) {
-      activeCategoryId = null;
-      document.querySelectorAll('.cat-card.active').forEach(c => c.classList.remove('active'));
-      renderList();
-      return;
-    }
-
-    const cardEl = document.querySelector(`.cat-card[data-cat-id="${categoryId}"]`);
-    const isFirstLoad = !categoryMap;
-    if (isFirstLoad) showStatus(t().categoryLoading, 'loading');
-    if (cardEl) cardEl.classList.add('loading');
-
-    try {
-      await ensureCategoryMap();
-      activeCategoryId = categoryId;
-      document.querySelectorAll('.cat-card.active').forEach(c => c.classList.remove('active'));
-      if (cardEl) cardEl.classList.add('active');
-      renderList();
-      if (isFirstLoad) clearStatus();
-    } catch (err) {
-      showStatus(t().categoryFail + err.message, 'error');
-    } finally {
-      if (cardEl) cardEl.classList.remove('loading');
-    }
-  }
-
-  function renderList() {
-    const list = $('achList');
-    if (!list) return;
-
-    let items = allAchievements;
-    if (currentFilter === 'completed') items = items.filter(a => a.completedAt);
-    else if (currentFilter === 'incomplete') items = items.filter(a => !a.completedAt);
-
-    if (activeCategoryId !== null && categoryMap) {
-      const catData = categoryMap[String(activeCategoryId)];
-      if (catData) {
-        const allowed = new Set(catData.achievement_ids);
-        items = items.filter(a => allowed.has(a.id));
-      }
-    }
-
-    if (searchTerm) {
-      items = items.filter(a => a.name.toLowerCase().includes(searchTerm));
-    }
-
-    const sortLocale = t().sortLocale;
-    items.sort((a, b) => {
-      if (a.completedAt && b.completedAt) return b.completedAt - a.completedAt;
-      if (a.completedAt) return -1;
-      if (b.completedAt) return 1;
-      return a.name.localeCompare(b.name, sortLocale);
-    });
-
-    if (items.length === 0) {
-      list.innerHTML = `<div class="status empty">${escapeHtml(t().empty)}</div>`;
-      return;
-    }
-
-    list.innerHTML = items.map(a => `
-      <div class="ach-item ${a.completedAt ? 'completed' : 'incomplete'}">
-        <div>
-          <a class="ach-name" href="https://www.wowhead.com/achievement=${a.id}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.name)}</a>
-          <span class="ach-id">#${a.id}</span>
-        </div>
-        <div class="ach-date">
-          ${a.completedAt ? formatDate(a.completedAt) : '—'}
-        </div>
-      </div>
-    `).join('');
-
-    if (window.$WowheadPower) window.$WowheadPower.refreshLinks();
   }
 
   function showStatus(msg, type) {
