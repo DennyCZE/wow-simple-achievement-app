@@ -2,27 +2,39 @@ import { escapeHtml, formatDate } from './dom.js';
 import { state } from './state.js';
 import { t } from './i18n.js';
 import { collectAchievementIds } from './category-tree.js';
+import { getAchievementDetail, getCachedAchievementDetail } from './api.js';
+
+const recentOf = data => (data?.achievements || [])
+  .filter(a => a.completed_timestamp)
+  .sort((a, b) => b.completed_timestamp - a.completed_timestamp)
+  .slice(0, 4);
 
 export function renderSummaryView() {
   const _ = t();
   const data = state.lastResultsData;
   const cd = state.categoryData;
 
-  const recent = (data.achievements || [])
-    .filter(a => a.completed_timestamp)
-    .sort((a, b) => b.completed_timestamp - a.completed_timestamp)
-    .slice(0, 4);
+  const recent = recentOf(data);
 
   const recentHtml = recent.map(a => {
     const id = a.id;
     const name = a.achievement?.name || `#${id}`;
+    const cached = getCachedAchievementDetail(id);
+    const pts = cached?.points;
+    const iconHtml = cached?.icon_url
+      ? `<img src="${escapeHtml(cached.icon_url)}" alt="" loading="lazy">`
+      : '⚔';
+    const pointsHtml = pts != null
+      ? `<div class="recent-points" data-ach-id="${id}">${pts}</div>`
+      : `<div class="recent-points pending" data-ach-id="${id}">·</div>`;
     return `
       <div class="recent-item">
-        <div class="recent-icon">⚔</div>
+        <div class="recent-icon" data-ach-id="${id}">${iconHtml}</div>
         <div class="recent-body">
           <a class="recent-name" href="https://www.wowhead.com/achievement=${id}" target="_blank" rel="noopener noreferrer">${escapeHtml(name)}</a>
         </div>
         <div class="recent-date">${formatDate(a.completed_timestamp, _.dateLocale)}</div>
+        ${pointsHtml}
       </div>
     `;
   }).join('');
@@ -100,4 +112,36 @@ export function renderSummaryView() {
     </div>
     <div class="progress-grid">${progressHtml}</div>
   `;
+}
+
+// Lazy-fetch detail (points + icon URL) for the 4 recent rows, then patch
+// the placeholders in place. Avoids re-rendering the whole summary just
+// to fill in numbers and images.
+export async function ensureRecentDetails() {
+  const recent = recentOf(state.lastResultsData);
+  if (recent.length === 0) return;
+
+  await Promise.all(recent.map(async a => {
+    if (getCachedAchievementDetail(a.id)) return;
+    await getAchievementDetail(a.id);
+  }));
+
+  for (const a of recent) {
+    const detail = getCachedAchievementDetail(a.id);
+    if (!detail) continue;
+
+    if (detail.icon_url) {
+      const iconEl = document.querySelector(`.recent-icon[data-ach-id="${a.id}"]`);
+      if (iconEl && !iconEl.querySelector('img')) {
+        iconEl.innerHTML = `<img src="${escapeHtml(detail.icon_url)}" alt="" loading="lazy">`;
+      }
+    }
+    if (detail.points != null) {
+      const ptsEl = document.querySelector(`.recent-points.pending[data-ach-id="${a.id}"]`);
+      if (ptsEl) {
+        ptsEl.textContent = detail.points;
+        ptsEl.classList.remove('pending');
+      }
+    }
+  }
 }

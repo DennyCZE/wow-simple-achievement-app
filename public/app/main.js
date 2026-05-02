@@ -8,8 +8,8 @@ import {
   isFavorite, addFavorite, removeFavorite,
 } from './favorites.js';
 import { renderSidebar } from './sidebar.js';
-import { renderSummaryView } from './render-summary.js';
-import { renderListView } from './render-list.js';
+import { renderSummaryView, ensureRecentDetails } from './render-summary.js';
+import { renderListView, attachAmountObservers } from './render-list.js';
 import { initTooltip, hideTip } from './tooltip.js';
 
 const searchBtn  = $('searchBtn');
@@ -29,8 +29,10 @@ function renderContent() {
 
   if (state.currentView === 'summary' && !state.searchTerm) {
     content.innerHTML = renderSummaryView();
+    ensureRecentDetails();
   } else {
     content.innerHTML = renderListView();
+    attachAmountObservers();
   }
 
   if (window.$WowheadPower) window.$WowheadPower.refreshLinks();

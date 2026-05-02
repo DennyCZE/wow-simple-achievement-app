@@ -209,7 +209,7 @@ try {
             json_error(400, 'Missing or invalid id');
         }
 
-        $cacheKey = sprintf('ach-detail-v2:%s:%d:%s', $region, $id, $locale);
+        $cacheKey = sprintf('ach-detail-v4:%s:%d:%s', $region, $id, $locale);
         $cached = $cache->get($cacheKey);
         if ($cached !== null) {
             header('X-Cache: HIT');
@@ -248,10 +248,25 @@ try {
             return $fallback ?? '';
         };
 
+        $iconUrl = '';
+        try {
+            $media = $client->getAchievementMedia($region, $locale, $id);
+            foreach ($media['assets'] ?? [] as $asset) {
+                if (($asset['key'] ?? '') === 'icon' && isset($asset['value'])) {
+                    $iconUrl = (string)$asset['value'];
+                    break;
+                }
+            }
+        } catch (Throwable $e) {
+            // Achievement has no media; leave icon empty.
+        }
+
         $simplified = [
             'id'          => (int)($detail['id'] ?? $id),
             'name'        => $pick($detail['name'] ?? '', $detailEn['name'] ?? ''),
             'description' => $pick($detail['description'] ?? '', $detailEn['description'] ?? ''),
+            'points'      => isset($detail['points']) ? (int)$detail['points'] : null,
+            'icon_url'    => $iconUrl,
             'criteria'    => null,
         ];
 

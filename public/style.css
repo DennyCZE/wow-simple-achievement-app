@@ -385,14 +385,44 @@
   }
 
   .window {
-    background: linear-gradient(180deg, #2a1810 0%, #1a0f06 100%);
-    border: 3px solid var(--gold-deep);
+    position: relative;
+    background:
+      /* corner rivets — gold studs at the four inside corners */
+      radial-gradient(circle 5px at 16px 16px,
+        #fff3ae 0%, var(--gold) 35%, var(--gold-deep) 70%, transparent 72%),
+      radial-gradient(circle 5px at calc(100% - 16px) 16px,
+        #fff3ae 0%, var(--gold) 35%, var(--gold-deep) 70%, transparent 72%),
+      radial-gradient(circle 5px at 16px calc(100% - 16px),
+        #fff3ae 0%, var(--gold) 35%, var(--gold-deep) 70%, transparent 72%),
+      radial-gradient(circle 5px at calc(100% - 16px) calc(100% - 16px),
+        #fff3ae 0%, var(--gold) 35%, var(--gold-deep) 70%, transparent 72%),
+      /* subtle wood grain stripes */
+      repeating-linear-gradient(180deg,
+        rgba(255, 255, 255, 0.015) 0px,
+        rgba(255, 255, 255, 0.015) 2px,
+        transparent 2px, transparent 5px),
+      linear-gradient(180deg, #2a1810 0%, #1a0f06 100%);
+    border: 8px solid;
+    border-image: linear-gradient(180deg, #6e4f2a 0%, #3a2818 50%, #6e4f2a 100%) 1;
     border-radius: 4px;
-    padding: 12px;
+    padding: 20px 18px;
     box-shadow:
-      inset 0 0 0 1px rgba(0, 0, 0, 0.5),
-      0 6px 28px rgba(0, 0, 0, 0.7);
+      inset 0 0 0 1px var(--gold-deep),
+      inset 0 0 0 2px rgba(0, 0, 0, 0.7),
+      inset 0 0 30px rgba(0, 0, 0, 0.55),
+      0 8px 32px rgba(0, 0, 0, 0.75);
   }
+  /* Inner gold piping just inside the wood frame */
+  .window::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border: 1px solid rgba(240, 196, 25, 0.35);
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .window > * { position: relative; z-index: 1; }
 
   .window-header {
     display: flex;
@@ -489,11 +519,22 @@
   .sidebar-item:hover {
     background: rgba(255, 255, 255, 0.35);
   }
+  .sidebar-item { position: relative; }
   .sidebar-item.active {
     background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-2) 100%);
     box-shadow: inset 0 0 0 1px rgba(138, 106, 47, 0.5);
     font-weight: 600;
     color: #4a2810;
+  }
+  /* Gold ribbon down the left edge of the active tab */
+  .sidebar-item.active::before {
+    content: '';
+    position: absolute;
+    left: -1px; top: 1px; bottom: 1px;
+    width: 3px;
+    background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 50%, var(--gold-deep) 100%);
+    box-shadow: 0 0 6px rgba(240, 196, 25, 0.55);
+    border-radius: 1px;
   }
   .sidebar-group { margin: 0; }
   .sidebar-group > summary { position: relative; padding-right: 22px; }
@@ -537,8 +578,11 @@
     min-height: 320px;
   }
 
+  /* Chevron-tipped ribbon — pointed ends with gold piping along top/bottom */
   .banner {
-    background: linear-gradient(180deg, var(--banner-bg) 0%, var(--banner-bg-2) 100%);
+    position: relative;
+    background:
+      linear-gradient(180deg, var(--banner-bg) 0%, var(--banner-bg-2) 100%);
     color: var(--banner-text);
     font-family: var(--serif-display);
     font-size: 0.95rem;
@@ -546,13 +590,34 @@
     text-transform: uppercase;
     letter-spacing: 0.08em;
     text-align: center;
-    padding: 8px 14px;
-    border: 1px solid var(--parchment-edge);
-    border-radius: 2px;
-    margin: 8px 0 10px 0;
+    padding: 9px 32px;
+    margin: 10px 14px 12px 14px;
+    border-top: 1px solid var(--gold-deep);
+    border-bottom: 1px solid var(--gold-deep);
+    text-shadow:
+      0 1px 0 rgba(0, 0, 0, 0.7),
+      0 0 8px rgba(0, 0, 0, 0.4);
     box-shadow:
-      inset 0 1px 0 rgba(255,255,255,0.1),
-      0 1px 0 rgba(0,0,0,0.2);
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+    clip-path: polygon(
+      14px 0,
+      calc(100% - 14px) 0,
+      100% 50%,
+      calc(100% - 14px) 100%,
+      14px 100%,
+      0 50%
+    );
+  }
+  /* Inner gold pinstripe inside the ribbon */
+  .banner::before {
+    content: '';
+    position: absolute;
+    top: 3px; bottom: 3px;
+    left: 18px; right: 18px;
+    border-top: 1px solid rgba(240, 196, 25, 0.3);
+    border-bottom: 1px solid rgba(240, 196, 25, 0.3);
+    pointer-events: none;
   }
 
   /* Recent achievements (summary view) */
@@ -581,6 +646,13 @@
     color: var(--gold);
     font-size: 1.2rem;
     box-shadow: inset 0 0 6px rgba(0,0,0,0.4);
+    overflow: hidden;
+  }
+  .recent-icon img, .ach-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
   }
   .recent-name {
     font-family: var(--serif-display);
@@ -601,16 +673,35 @@
     border-radius: 2px;
     border: 1px solid var(--gold-deep);
   }
+  /* Achievement-points medallion — circular gold-rimmed coin */
   .recent-points {
-    background: linear-gradient(180deg, #3a2818 0%, #1f1409 100%);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 35% 30%, #5a3a1a 0%, #2a1810 60%, #150b04 100%);
     color: var(--gold);
     font-family: var(--serif-display);
     font-weight: 700;
-    padding: 4px 10px;
-    border: 1px solid var(--gold-deep);
-    border-radius: 2px;
-    min-width: 36px;
-    text-align: center;
+    font-size: 0.95rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--gold-deep);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.15),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.6),
+      0 0 0 1px rgba(0, 0, 0, 0.5),
+      0 0 8px rgba(240, 196, 25, 0.18);
+    text-shadow: 0 0 6px rgba(240, 196, 25, 0.35), 0 1px 0 rgba(0, 0, 0, 0.7);
+    flex: 0 0 auto;
+  }
+  .recent-points.pending {
+    color: var(--gold-deep);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 0 0 1px rgba(0, 0, 0, 0.5);
   }
 
   /* Progress overview (summary view) — rows are progress bars */
@@ -773,8 +864,8 @@
   .ach-tip {
     position: absolute;
     z-index: 1000;
-    min-width: 240px;
-    max-width: 360px;
+    min-width: 260px;
+    max-width: 440px;
     background: linear-gradient(180deg, #1a0d04 0%, #0d0602 100%);
     border: 2px solid var(--gold-deep);
     border-radius: 3px;
@@ -838,24 +929,43 @@
   }
   .ach-tip-error { color: var(--error); }
 
-  .prog-tip-list { gap: 4px; }
+  .prog-tip-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
   .prog-tip-row {
-    display: grid;
-    grid-template-columns: 1fr 84px auto;
-    gap: 8px;
-    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     font-size: 0.88rem;
     color: var(--text);
     line-height: 1.3;
   }
-  .prog-tip-label {
+  .prog-tip-head {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .prog-tip-count {
+    font-family: var(--serif-display);
+    font-weight: 700;
+    color: var(--gold-bright);
+    font-size: 0.82rem;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    flex: 0 0 auto;
+  }
+  .prog-tip-label {
+    flex: 1 1 auto;
+    overflow-wrap: anywhere;
   }
   .prog-tip-bar {
     position: relative;
     display: block;
+    width: 100%;
     height: 6px;
     background: rgba(58, 32, 20, 0.55);
     border: 1px solid var(--gold-deep);
@@ -866,13 +976,6 @@
     position: absolute;
     top: 0; left: 0; bottom: 0;
     background: linear-gradient(180deg, #7fcf52 0%, #4a8a3a 100%);
-  }
-  .prog-tip-count {
-    font-family: var(--serif-display);
-    font-weight: 700;
-    color: var(--gold-bright);
-    font-size: 0.8rem;
-    white-space: nowrap;
   }
 
   .progress-item[data-tip-cat] { cursor: help; }
@@ -901,3 +1004,26 @@
     border: 1px dashed var(--parchment-edge);
     color: var(--parchment-muted);
   }
+
+  /* Scrollbars — gold thumb on dark wood track */
+  html { scrollbar-color: var(--gold-deep) var(--bg-deep); scrollbar-width: thin; }
+  ::-webkit-scrollbar { width: 12px; height: 12px; }
+  ::-webkit-scrollbar-track {
+    background: linear-gradient(90deg, #1a0d04 0%, #0d0602 100%);
+    box-shadow: inset 1px 0 0 var(--gold-deep);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #6e4f2a 0%, #3a2818 100%);
+    border: 2px solid #1a0d04;
+    border-radius: 6px;
+    box-shadow:
+      inset 0 1px 0 rgba(240, 196, 25, 0.35),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.4);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--gold-deep) 0%, #6e4f2a 100%);
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-deep) 100%);
+  }
+  ::-webkit-scrollbar-corner { background: #0d0602; }

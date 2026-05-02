@@ -98,9 +98,14 @@ export async function ensureCategoryMap() {
   finally { state.categoryMapPromise = null; }
 }
 
-// Per-achievement detail (criterion descriptions) — in-memory cache,
+// Per-achievement detail (criterion descriptions, points) — in-memory cache,
 // re-fetched if a hover repeats. Backend caches the upstream call 7d.
-const achDetailCache = new Map();
+const achDetailCache    = new Map();
+const achDetailResolved = new Map();
+
+// Sync read of the resolved detail; returns undefined if not yet fetched.
+// Used by the summary view to render points eagerly when available.
+export const getCachedAchievementDetail = id => achDetailResolved.get(id);
 
 export async function getAchievementDetail(id) {
   if (achDetailCache.has(id)) return achDetailCache.get(id);
@@ -111,7 +116,9 @@ export async function getAchievementDetail(id) {
       const params = new URLSearchParams({ action: 'achievement-detail', id, region, locale });
       const res = await fetch(`${API_URL}?${params}`);
       if (!res.ok) return null;
-      return await res.json();
+      const data = await res.json();
+      if (data) achDetailResolved.set(id, data);
+      return data;
     } catch { return null; }
   })();
   achDetailCache.set(id, p);

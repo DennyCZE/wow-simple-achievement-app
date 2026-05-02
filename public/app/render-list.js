@@ -1,15 +1,40 @@
 import { escapeHtml, formatDate } from './dom.js';
 import { state } from './state.js';
 import { t } from './i18n.js';
+import { getAchievementDetail, getCachedAchievementDetail } from './api.js';
 
+// Two flavours: 'criteria' (count completed children of total children) and
+// 'amount' (numeric counter — honor kills, gold looted, rep earned — where the
+// running total comes from the character payload and the target needs an extra
+// detail fetch). Single-child achievements with an amount are counters, not
+// 1-of-1 checklists, so they get amount-style too.
 function criteriaProgress(a) {
   const c = a.criteria;
   if (!c || a.completed_timestamp) return null;
   const kids = Array.isArray(c.child_criteria) ? c.child_criteria : null;
-  if (!kids || kids.length === 0) return null;
-  const total = kids.length;
-  const done = kids.reduce((n, k) => n + (k.is_completed ? 1 : 0), 0);
-  return { done, total };
+
+  // Multiple children → completed-count style.
+  if (kids && kids.length > 1) {
+    const total = kids.length;
+    const done = kids.reduce((n, k) => n + (k.is_completed ? 1 : 0), 0);
+    return { kind: 'criteria', done, total };
+  }
+
+  // Single child with amount, OR root-only criterion with amount → counter.
+  const counter = (kids && kids.length === 1 && typeof kids[0].amount === 'number' && kids[0].amount > 0)
+    ? kids[0]
+    : (typeof c.amount === 'number' && c.amount > 0 ? c : null);
+  if (counter) {
+    const cached = getCachedAchievementDetail(a.id);
+    // Target lives on the static achievement detail — might be on root criteria
+    // or its single child, depending on how the achievement is modelled upstream.
+    const target = cached?.criteria?.amount
+                || cached?.criteria?.child_criteria?.[0]?.amount;
+    return target && target > 0
+      ? { kind: 'amount', done: counter.amount, total: target }
+      : { kind: 'amount', done: counter.amount, total: null };
+  }
+  return null;
 }
 
 // Capture per-criterion done state so the hover tooltip can mark each item.
@@ -76,14 +101,21 @@ export function renderListView() {
     return `${banner}${filtersHtml}<div class="status empty">${escapeHtml(_.empty)}</div>`;
   }
 
+  const fmtN = n => Number(n).toLocaleString(_.dateLocale);
+
   const listHtml = items.map(a => {
     let progressHtml = '';
     if (a.progress) {
-      const pct = (a.progress.done / a.progress.total) * 100;
+      const p = a.progress;
+      const pct = (p.total != null && p.total > 0) ? Math.min(100, (p.done / p.total) * 100) : 0;
+      const text = p.total != null ? `${fmtN(p.done)} / ${fmtN(p.total)}` : fmtN(p.done);
+      const lazyAttr = (p.kind === 'amount' && p.total == null)
+        ? ` data-amount-current="${p.done}"`
+        : '';
       progressHtml = `
-        <div class="ach-progress" data-tip-ach="${a.id}" tabindex="0">
+        <div class="ach-progress" data-tip-ach="${a.id}"${lazyAttr} tabindex="0">
           <div class="ach-progress-bar"><div class="ach-progress-fill" style="width: ${pct.toFixed(2)}%"></div></div>
-          <div class="ach-progress-text">${a.progress.done} / ${a.progress.total}</div>
+          <div class="ach-progress-text">${text}</div>
         </div>
       `;
     }
@@ -101,4 +133,43 @@ export function renderListView() {
   }).join('');
 
   return `${banner}${filtersHtml}<div class="ach-list">${listHtml}</div>`;
+}
+
+// Lazy-fetch the achievement target for amount-style rows when they scroll
+// into view. Keeps API traffic low — only rows the user actually looks at
+// trigger a request, and the in-memory + server caches dedupe everything.
+let amountObserver = null;
+
+function patchAmountRow(el) {
+  const id = parseInt(el.dataset.tipAch, 10);
+  if (!id) return;
+  const current = parseInt(el.dataset.amountCurrent, 10);
+  if (!Number.isFinite(current)) return;
+  getAchievementDetail(id).then(detail => {
+    const target = detail?.criteria?.amount
+                || detail?.criteria?.child_criteria?.[0]?.amount;
+    if (!target || target <= 0) return;
+    const pct  = Math.min(100, (current / target) * 100);
+    const fmtN = n => Number(n).toLocaleString(t().dateLocale);
+    const fill = el.querySelector('.ach-progress-fill');
+    const text = el.querySelector('.ach-progress-text');
+    if (fill) fill.style.width = `${pct.toFixed(2)}%`;
+    if (text) text.textContent = `${fmtN(current)} / ${fmtN(target)}`;
+    delete el.dataset.amountCurrent;
+  });
+}
+
+export function attachAmountObservers() {
+  const rows = document.querySelectorAll('.ach-progress[data-amount-current]');
+  if (rows.length === 0) return;
+  if (!amountObserver) {
+    amountObserver = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        amountObserver.unobserve(entry.target);
+        patchAmountRow(entry.target);
+      }
+    }, { rootMargin: '200px 0px' });
+  }
+  rows.forEach(el => amountObserver.observe(el));
 }

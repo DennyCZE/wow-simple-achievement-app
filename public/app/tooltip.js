@@ -103,16 +103,18 @@ function renderCatTipBody(catId) {
     const sp = s.total > 0 ? (s.done / s.total) * 100 : 0;
     return `
       <li class="prog-tip-row">
-        <span class="prog-tip-label">${escapeHtml(s.name)}</span>
+        <div class="prog-tip-head">
+          <span class="prog-tip-count">${fmtN(s.done)}/${fmtN(s.total)}</span>
+          <span class="prog-tip-label">${escapeHtml(s.name)}</span>
+        </div>
         <span class="prog-tip-bar"><span class="prog-tip-fill" style="width: ${sp.toFixed(2)}%"></span></span>
-        <span class="prog-tip-count">${fmtN(s.done)}/${fmtN(s.total)}</span>
       </li>
     `;
   }).join('');
   return `
     <div class="ach-tip-title">${escapeHtml(cat.name)}</div>
     <div class="ach-tip-summary">${escapeHtml(headerSub)}</div>
-    <ul class="ach-tip-list prog-tip-list">${list}</ul>
+    <ul class="prog-tip-list">${list}</ul>
   `;
 }
 
