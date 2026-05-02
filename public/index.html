@@ -745,6 +745,16 @@
     align-items: center;
     gap: 8px;
     max-width: 320px;
+    cursor: help;
+    padding: 2px 4px;
+    margin-left: -4px;
+    border-radius: 2px;
+    transition: background 0.12s;
+  }
+  .ach-progress:hover,
+  .ach-progress:focus-visible {
+    background: rgba(74, 40, 16, 0.18);
+    outline: none;
   }
   .ach-progress-bar {
     position: relative;
@@ -837,6 +847,51 @@
     font-size: 0.88rem;
   }
   .ach-tip-error { color: var(--error); }
+
+  .prog-tip-list { gap: 4px; }
+  .prog-tip-row {
+    display: grid;
+    grid-template-columns: 1fr 84px auto;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.88rem;
+    color: var(--text);
+    line-height: 1.3;
+  }
+  .prog-tip-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .prog-tip-bar {
+    position: relative;
+    display: block;
+    height: 6px;
+    background: rgba(58, 32, 20, 0.55);
+    border: 1px solid var(--gold-deep);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .prog-tip-fill {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    background: linear-gradient(180deg, #7fcf52 0%, #4a8a3a 100%);
+  }
+  .prog-tip-count {
+    font-family: var(--serif-display);
+    font-weight: 700;
+    color: var(--gold-bright);
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .progress-item[data-tip-cat] { cursor: help; }
+  .progress-item[data-tip-cat]:hover {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.15),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+      0 0 0 1px var(--gold);
+  }
   .content .ach-name:hover { color: #1a0d04; }
   .content .ach-id {
     color: var(--parchment-muted);
@@ -1240,10 +1295,10 @@
       renderContent();
     }
   });
-  // Custom criteria tooltip for in-progress rows
+  // Hover tooltip — used for both in-progress achievements and progress bars
   const achDetailCache = new Map();    // id -> Promise<detail|null>
   const tipEl = $('achTip');
-  let tipForId = null;
+  let tipKey = null;                   // "ach:<id>" or "cat:<id>"
 
   async function getAchievementDetail(id) {
     if (achDetailCache.has(id)) return achDetailCache.get(id);
@@ -1264,15 +1319,28 @@
   }
 
   function positionTip(row) {
-    const r = row.getBoundingClientRect();
-    const top = window.scrollY + r.bottom + 6;
-    const left = window.scrollX + r.left;
-    const maxLeft = window.scrollX + document.documentElement.clientWidth - tipEl.offsetWidth - 8;
+    const r    = row.getBoundingClientRect();
+    const tipW = tipEl.offsetWidth;
+    const tipH = tipEl.offsetHeight;
+    const vpW  = document.documentElement.clientWidth;
+    const vpH  = window.innerHeight;
+    const gap  = 6;
+
+    const spaceBelow = vpH - r.bottom;
+    const spaceAbove = r.top;
+    const flipUp = spaceBelow < tipH + gap && spaceAbove > spaceBelow;
+
+    const top  = flipUp
+      ? window.scrollY + r.top - tipH - gap
+      : window.scrollY + r.bottom + gap;
+    const maxLeft = window.scrollX + vpW - tipW - 8;
+    const left = Math.max(8, Math.min(window.scrollX + r.left, maxLeft));
+
     tipEl.style.top  = top + 'px';
-    tipEl.style.left = Math.max(8, Math.min(left, maxLeft)) + 'px';
+    tipEl.style.left = left + 'px';
   }
 
-  function renderTipBody(id, detail) {
+  function renderAchTipBody(id, detail) {
     const _ = t();
     const state = childStateById[id];
     if (!detail) return `<div class="ach-tip-error">${escapeHtml(_.tipError)}</div>`;
@@ -1304,38 +1372,111 @@
     `;
   }
 
-  function showTip(row) {
+  function renderCatTipBody(catId) {
+    const _ = t();
+    const cat = categoryData?.categories?.[String(catId)];
+    if (!cat) return null;
+
+    const completed = new Set(
+      (lastResultsData?.achievements || [])
+        .filter(a => a.completed_timestamp)
+        .map(a => a.id)
+    );
+    const totalIds = collectAchievementIds(catId);
+    let totalDone = 0;
+    totalIds.forEach(x => { if (completed.has(x)) totalDone++; });
+    const totalCount = totalIds.size;
+    const totalPct = totalCount > 0 ? (totalDone / totalCount) * 100 : 0;
+
+    const subs = (cat.subcategory_ids || [])
+      .map(sid => {
+        const sc = categoryData.categories[String(sid)];
+        if (!sc) return null;
+        const ids = collectAchievementIds(sid);
+        if (ids.size === 0) return null;
+        let done = 0;
+        ids.forEach(x => { if (completed.has(x)) done++; });
+        return { name: sc.name, done, total: ids.size };
+      })
+      .filter(Boolean);
+
+    const fmtN = n => Number(n).toLocaleString(_.dateLocale);
+    const headerSub = `${fmtN(totalDone)} / ${fmtN(totalCount)} · ${totalPct.toFixed(0)}%`;
+
+    if (subs.length === 0) {
+      return `
+        <div class="ach-tip-title">${escapeHtml(cat.name)}</div>
+        <div class="ach-tip-summary">${escapeHtml(headerSub)}</div>
+      `;
+    }
+    const list = subs.map(s => {
+      const sp = s.total > 0 ? (s.done / s.total) * 100 : 0;
+      return `
+        <li class="prog-tip-row">
+          <span class="prog-tip-label">${escapeHtml(s.name)}</span>
+          <span class="prog-tip-bar"><span class="prog-tip-fill" style="width: ${sp.toFixed(2)}%"></span></span>
+          <span class="prog-tip-count">${fmtN(s.done)}/${fmtN(s.total)}</span>
+        </li>
+      `;
+    }).join('');
+    return `
+      <div class="ach-tip-title">${escapeHtml(cat.name)}</div>
+      <div class="ach-tip-summary">${escapeHtml(headerSub)}</div>
+      <ul class="ach-tip-list prog-tip-list">${list}</ul>
+    `;
+  }
+
+  function showAchTip(row) {
     const id = parseInt(row.dataset.tipAch, 10);
     if (!id) return;
-    tipForId = id;
+    tipKey = 'ach:' + id;
     tipEl.hidden = false;
     tipEl.classList.remove('visible');
     tipEl.innerHTML = `<div class="ach-tip-loading">${escapeHtml(t().tipLoading)}</div>`;
     positionTip(row);
     requestAnimationFrame(() => tipEl.classList.add('visible'));
-
     getAchievementDetail(id).then(detail => {
-      if (tipForId !== id || tipEl.hidden) return;
-      tipEl.innerHTML = renderTipBody(id, detail);
+      if (tipKey !== 'ach:' + id || tipEl.hidden) return;
+      tipEl.innerHTML = renderAchTipBody(id, detail);
       positionTip(row);
     });
   }
 
+  function showCatTip(row) {
+    const id = parseInt(row.dataset.tipCat, 10);
+    if (!id) return;
+    const html = renderCatTipBody(id);
+    if (!html) return;
+    tipKey = 'cat:' + id;
+    tipEl.hidden = false;
+    tipEl.classList.remove('visible');
+    tipEl.innerHTML = html;
+    positionTip(row);
+    requestAnimationFrame(() => tipEl.classList.add('visible'));
+  }
+
   function hideTip() {
-    tipForId = null;
+    tipKey = null;
     tipEl.classList.remove('visible');
     tipEl.hidden = true;
     tipEl.innerHTML = '';
   }
 
   $('content').addEventListener('mouseover', e => {
-    const row = e.target.closest('.ach-item[data-tip-ach]');
-    if (!row || row === tipEl) return;
-    if (parseInt(row.dataset.tipAch, 10) === tipForId) return;
-    showTip(row);
+    const achEl = e.target.closest('.ach-progress[data-tip-ach]');
+    if (achEl) {
+      if (tipKey === 'ach:' + achEl.dataset.tipAch) return;
+      showAchTip(achEl);
+      return;
+    }
+    const catRow = e.target.closest('.progress-item[data-tip-cat]');
+    if (catRow) {
+      if (tipKey === 'cat:' + catRow.dataset.tipCat) return;
+      showCatTip(catRow);
+    }
   });
   $('content').addEventListener('mouseout', e => {
-    const row = e.target.closest('.ach-item[data-tip-ach]');
+    const row = e.target.closest('.ach-progress[data-tip-ach], .progress-item[data-tip-cat]');
     if (!row) return;
     const next = e.relatedTarget;
     if (next && row.contains(next)) return;
@@ -1526,7 +1667,7 @@
         ids.forEach(x => allIds.add(x));
         let completed = 0;
         ids.forEach(x => { if (completedIds.has(x)) completed++; });
-        return { name: cat.name, completed, possible: ids.size };
+        return { id: rootId, name: cat.name, completed, possible: ids.size };
       }).filter(Boolean);
       totalCompleted = 0;
       allIds.forEach(x => { if (completedIds.has(x)) totalCompleted++; });
@@ -1536,6 +1677,7 @@
         .slice()
         .sort((a, b) => (b.quantity || 0) - (a.quantity || 0))
         .map(c => ({
+          id: c.category?.id ?? null,
           name: c.category?.name || '—',
           completed: c.quantity ?? 0,
           possible: null,
@@ -1545,11 +1687,13 @@
     const fmt = n => Number(n).toLocaleString(_.dateLocale);
     const pct = (c, p) => (p && p > 0) ? Math.min(100, (c / p) * 100) : (c > 0 ? 100 : 0);
 
+    const hasMap = !!categoryData?.root_ids?.length;
     const progressHtml = rows.map(r => {
       const value = r.possible != null ? `${fmt(r.completed)}/${fmt(r.possible)}` : fmt(r.completed);
       const fill = pct(r.completed, r.possible);
+      const tipAttr = hasMap && r.id != null ? ` data-tip-cat="${r.id}"` : '';
       return `
-        <div class="progress-item">
+        <div class="progress-item"${tipAttr}>
           <div class="progress-fill" style="width: ${fill.toFixed(2)}%"></div>
           <span class="progress-item-name">${escapeHtml(r.name)}</span>
           <span class="progress-item-value">${value}</span>
@@ -1671,15 +1815,14 @@
       if (a.progress) {
         const pct = (a.progress.done / a.progress.total) * 100;
         progressHtml = `
-          <div class="ach-progress">
+          <div class="ach-progress" data-tip-ach="${a.id}" tabindex="0">
             <div class="ach-progress-bar"><div class="ach-progress-fill" style="width: ${pct.toFixed(2)}%"></div></div>
             <div class="ach-progress-text">${a.progress.done} / ${a.progress.total}</div>
           </div>
         `;
       }
-      const inProgress = !a.completedAt && a.progress;
       return `
-        <div class="ach-item ${a.completedAt ? 'completed' : 'incomplete'}"${inProgress ? ` data-tip-ach="${a.id}"` : ''}>
+        <div class="ach-item ${a.completedAt ? 'completed' : 'incomplete'}">
           <div class="ach-icon">⚔</div>
           <div>
             <a class="ach-name" href="https://www.wowhead.com/achievement=${a.id}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.name)}</a>
