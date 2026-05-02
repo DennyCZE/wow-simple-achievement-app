@@ -124,6 +124,15 @@ final class BlizzardClient
     }
 
     /** @return array<string,mixed> */
+    public function getAchievement(string $region, string $locale, int $achievementId): array
+    {
+        return $this->getJson(sprintf(
+            'https://%s.api.blizzard.com/data/wow/achievement/%d?namespace=static-%s&locale=%s',
+            $region, $achievementId, $region, rawurlencode($locale)
+        ));
+    }
+
+    /** @return array<string,mixed> */
     private function getJson(string $url): array
     {
         $token = $this->getAccessToken();

@@ -199,6 +199,93 @@ try {
     }
 
     // --------------------------------------------------------
+    // action=achievement-detail: localized name + per-criterion
+    // descriptions for one achievement, cached 7 days. Used by the
+    // hover tooltip on in-progress rows.
+    // --------------------------------------------------------
+    if ($action === 'achievement-detail') {
+        $id = (int)($_GET['id'] ?? 0);
+        if ($id <= 0) {
+            json_error(400, 'Missing or invalid id');
+        }
+
+        $cacheKey = sprintf('ach-detail-v2:%s:%d:%s', $region, $id, $locale);
+        $cached = $cache->get($cacheKey);
+        if ($cached !== null) {
+            header('X-Cache: HIT');
+            echo $cached;
+            exit;
+        }
+        header('X-Cache: MISS');
+
+        try {
+            $detail = $client->getAchievement($region, $locale, $id);
+        } catch (Throwable $e) {
+            json_error(404, 'Achievement not found');
+        }
+
+        // Blizzard returns empty strings (not a per-locale dict) when the
+        // requested locale lacks a translation. Re-fetch in en_US and merge
+        // so name/description/criteria text always render something.
+        $detailEn = null;
+        $needsFallback = $locale !== 'en_US' && (
+            ($detail['name'] ?? '') === '' ||
+            ($detail['description'] ?? '') === '' ||
+            (($detail['criteria']['description'] ?? '') === '' && empty($detail['criteria']['child_criteria']))
+        );
+        if (!$needsFallback && $locale !== 'en_US') {
+            foreach ($detail['criteria']['child_criteria'] ?? [] as $kid) {
+                if (($kid['description'] ?? '') === '') { $needsFallback = true; break; }
+            }
+        }
+        if ($needsFallback) {
+            try { $detailEn = $client->getAchievement($region, 'en_US', $id); }
+            catch (Throwable $e) { $detailEn = null; }
+        }
+
+        $pick = static function (?string $primary, ?string $fallback): string {
+            if ($primary !== null && $primary !== '') return $primary;
+            return $fallback ?? '';
+        };
+
+        $simplified = [
+            'id'          => (int)($detail['id'] ?? $id),
+            'name'        => $pick($detail['name'] ?? '', $detailEn['name'] ?? ''),
+            'description' => $pick($detail['description'] ?? '', $detailEn['description'] ?? ''),
+            'criteria'    => null,
+        ];
+
+        if (isset($detail['criteria']) && is_array($detail['criteria'])) {
+            $c   = $detail['criteria'];
+            $cEn = $detailEn['criteria'] ?? [];
+            $kidsEnById = [];
+            foreach ($cEn['child_criteria'] ?? [] as $k) {
+                if (isset($k['id'])) $kidsEnById[(int)$k['id']] = $k;
+            }
+            $children = [];
+            foreach ($c['child_criteria'] ?? [] as $kid) {
+                $kid_id = (int)($kid['id'] ?? 0);
+                $en = $kidsEnById[$kid_id] ?? [];
+                $children[] = [
+                    'id'          => $kid_id,
+                    'description' => $pick($kid['description'] ?? '', $en['description'] ?? ''),
+                    'amount'      => isset($kid['amount']) ? (int)$kid['amount'] : null,
+                ];
+            }
+            $simplified['criteria'] = [
+                'description'    => $pick($c['description'] ?? '', $cEn['description'] ?? ''),
+                'amount'         => isset($c['amount']) ? (int)$c['amount'] : null,
+                'child_criteria' => $children,
+            ];
+        }
+
+        $body = json_encode($simplified, JSON_UNESCAPED_UNICODE);
+        $cache->set($cacheKey, $body, 7 * 86400);
+        echo $body;
+        exit;
+    }
+
+    // --------------------------------------------------------
     // action=achievements (default): character achievement summary
     // --------------------------------------------------------
     $realm     = strtolower(trim((string)($_GET['realm']     ?? '')));

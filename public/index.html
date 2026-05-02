@@ -768,6 +768,75 @@
     font-style: italic;
     white-space: nowrap;
   }
+
+  /* Custom criteria tooltip (in-progress rows only) */
+  .ach-tip {
+    position: absolute;
+    z-index: 1000;
+    min-width: 240px;
+    max-width: 360px;
+    background: linear-gradient(180deg, #1a0d04 0%, #0d0602 100%);
+    border: 2px solid var(--gold-deep);
+    border-radius: 3px;
+    padding: 10px 12px;
+    color: var(--text);
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.5),
+      0 6px 22px rgba(0, 0, 0, 0.7);
+    font-family: var(--serif-body);
+    font-size: 0.92rem;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(-2px);
+    transition: opacity 0.12s, transform 0.12s;
+  }
+  .ach-tip.visible { opacity: 1; transform: translateY(0); }
+  .ach-tip-title {
+    font-family: var(--serif-display);
+    font-weight: 700;
+    color: var(--gold);
+    font-size: 1rem;
+    letter-spacing: 0.03em;
+    margin-bottom: 4px;
+  }
+  .ach-tip-summary {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+  .ach-tip-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ach-tip-list li {
+    display: grid;
+    grid-template-columns: 16px 1fr;
+    gap: 6px;
+    align-items: start;
+    line-height: 1.35;
+  }
+  .ach-tip-list li.done   { color: var(--success); }
+  .ach-tip-list li.todo   { color: var(--text); opacity: 0.85; }
+  .ach-tip-mark {
+    font-family: var(--serif-display);
+    font-weight: 700;
+    text-align: center;
+  }
+  .ach-tip-list li.done .ach-tip-mark { color: var(--success); }
+  .ach-tip-list li.todo .ach-tip-mark { color: var(--gold-deep); }
+  .ach-tip-loading,
+  .ach-tip-empty,
+  .ach-tip-error {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 0.88rem;
+  }
+  .ach-tip-error { color: var(--error); }
   .content .ach-name:hover { color: #1a0d04; }
   .content .ach-id {
     color: var(--parchment-muted);
@@ -859,6 +928,8 @@
     </div>
   </div>
 
+  <div id="achTip" class="ach-tip" hidden></div>
+
 </div>
 
 <script>
@@ -918,6 +989,9 @@
       filterCompleted: '✓ Splněno',
       filterIncomplete: 'Rozpracováno',
       empty: 'Žádné výsledky odpovídající filtru.',
+      tipLoading: 'Načítám kritéria...',
+      tipNoCriteria: 'Bez dílčích kritérií.',
+      tipError: 'Detail se nepodařilo načíst.',
       dateLocale: 'cs-CZ',
       sortLocale: 'cs',
     },
@@ -955,6 +1029,9 @@
       filterCompleted: '✓ Completed',
       filterIncomplete: 'In progress',
       empty: 'No results match this filter.',
+      tipLoading: 'Loading criteria...',
+      tipNoCriteria: 'No child criteria.',
+      tipError: 'Failed to load detail.',
       dateLocale: 'en-US',
       sortLocale: 'en',
     },
@@ -1163,6 +1240,109 @@
       renderContent();
     }
   });
+  // Custom criteria tooltip for in-progress rows
+  const achDetailCache = new Map();    // id -> Promise<detail|null>
+  const tipEl = $('achTip');
+  let tipForId = null;
+
+  async function getAchievementDetail(id) {
+    if (achDetailCache.has(id)) return achDetailCache.get(id);
+    const region = $('region').value;
+    const locale = $('locale').value;
+    const p = (async () => {
+      try {
+        const params = new URLSearchParams({ action: 'achievement-detail', id, region, locale });
+        const res = await fetch(`${API_URL}?${params}`);
+        if (!res.ok) return null;
+        return await res.json();
+      } catch {
+        return null;
+      }
+    })();
+    achDetailCache.set(id, p);
+    return p;
+  }
+
+  function positionTip(row) {
+    const r = row.getBoundingClientRect();
+    const top = window.scrollY + r.bottom + 6;
+    const left = window.scrollX + r.left;
+    const maxLeft = window.scrollX + document.documentElement.clientWidth - tipEl.offsetWidth - 8;
+    tipEl.style.top  = top + 'px';
+    tipEl.style.left = Math.max(8, Math.min(left, maxLeft)) + 'px';
+  }
+
+  function renderTipBody(id, detail) {
+    const _ = t();
+    const state = childStateById[id];
+    if (!detail) return `<div class="ach-tip-error">${escapeHtml(_.tipError)}</div>`;
+    const kids = detail.criteria?.child_criteria || [];
+    if (!kids.length || !state) {
+      const summary = detail.criteria?.description || detail.description || '';
+      return `
+        <div class="ach-tip-title">${escapeHtml(detail.name || `#${id}`)}</div>
+        ${summary ? `<div class="ach-tip-summary">${escapeHtml(summary)}</div>` : ''}
+        <div class="ach-tip-empty">${escapeHtml(_.tipNoCriteria)}</div>
+      `;
+    }
+    const done  = kids.filter(k => state.get(k.id)).length;
+    const total = kids.length;
+    const list = kids.map(k => {
+      const isDone = !!state.get(k.id);
+      const label  = k.description || `#${k.id}`;
+      return `
+        <li class="${isDone ? 'done' : 'todo'}">
+          <span class="ach-tip-mark">${isDone ? '✓' : '◯'}</span>
+          <span>${escapeHtml(label)}</span>
+        </li>
+      `;
+    }).join('');
+    return `
+      <div class="ach-tip-title">${escapeHtml(detail.name || `#${id}`)}</div>
+      <div class="ach-tip-summary">${done} / ${total}</div>
+      <ul class="ach-tip-list">${list}</ul>
+    `;
+  }
+
+  function showTip(row) {
+    const id = parseInt(row.dataset.tipAch, 10);
+    if (!id) return;
+    tipForId = id;
+    tipEl.hidden = false;
+    tipEl.classList.remove('visible');
+    tipEl.innerHTML = `<div class="ach-tip-loading">${escapeHtml(t().tipLoading)}</div>`;
+    positionTip(row);
+    requestAnimationFrame(() => tipEl.classList.add('visible'));
+
+    getAchievementDetail(id).then(detail => {
+      if (tipForId !== id || tipEl.hidden) return;
+      tipEl.innerHTML = renderTipBody(id, detail);
+      positionTip(row);
+    });
+  }
+
+  function hideTip() {
+    tipForId = null;
+    tipEl.classList.remove('visible');
+    tipEl.hidden = true;
+    tipEl.innerHTML = '';
+  }
+
+  $('content').addEventListener('mouseover', e => {
+    const row = e.target.closest('.ach-item[data-tip-ach]');
+    if (!row || row === tipEl) return;
+    if (parseInt(row.dataset.tipAch, 10) === tipForId) return;
+    showTip(row);
+  });
+  $('content').addEventListener('mouseout', e => {
+    const row = e.target.closest('.ach-item[data-tip-ach]');
+    if (!row) return;
+    const next = e.relatedTarget;
+    if (next && row.contains(next)) return;
+    hideTip();
+  });
+  window.addEventListener('scroll', hideTip, { passive: true });
+
   $('sidebar').addEventListener('click', e => {
     const item = e.target.closest('.sidebar-item, .sidebar-subitem');
     if (!item) return;
@@ -1290,6 +1470,7 @@
 
   function renderContent() {
     const content = $('content');
+    if (typeof hideTip === 'function') hideTip();
     if (!lastResultsData) { content.innerHTML = ''; return; }
 
     if (currentView === 'summary' && !searchTerm) {
@@ -1419,14 +1600,30 @@
     return { done, total };
   }
 
+  // childStateById[ach.id] = Map<criterionId, isCompleted>, captured from
+  // the character payload so the tooltip can mark each criterion done/todo.
+  const childStateById = {};
+  function recordChildState(a) {
+    const kids = a.criteria?.child_criteria;
+    if (!Array.isArray(kids) || kids.length === 0) return;
+    const m = new Map();
+    for (const k of kids) {
+      if (typeof k.id === 'number') m.set(k.id, !!k.is_completed);
+    }
+    childStateById[a.id] = m;
+  }
+
   function renderListView() {
     const _ = t();
-    const allAch = (lastResultsData.achievements || []).map(a => ({
-      id: a.id,
-      name: a.achievement?.name || `#${a.id}`,
-      completedAt: a.completed_timestamp || null,
-      progress: criteriaProgress(a),
-    }));
+    const allAch = (lastResultsData.achievements || []).map(a => {
+      recordChildState(a);
+      return {
+        id: a.id,
+        name: a.achievement?.name || `#${a.id}`,
+        completedAt: a.completed_timestamp || null,
+        progress: criteriaProgress(a),
+      };
+    });
 
     let items = allAch;
     let title = '';
@@ -1480,8 +1677,9 @@
           </div>
         `;
       }
+      const inProgress = !a.completedAt && a.progress;
       return `
-        <div class="ach-item ${a.completedAt ? 'completed' : 'incomplete'}">
+        <div class="ach-item ${a.completedAt ? 'completed' : 'incomplete'}"${inProgress ? ` data-tip-ach="${a.id}"` : ''}>
           <div class="ach-icon">⚔</div>
           <div>
             <a class="ach-name" href="https://www.wowhead.com/achievement=${a.id}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.name)}</a>
