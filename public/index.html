@@ -623,31 +623,55 @@
     text-align: center;
   }
 
-  /* Progress overview (summary view) */
-  .progress-total {
+  /* Progress overview (summary view) — rows are progress bars */
+  .progress-total,
+  .progress-item {
+    position: relative;
+    overflow: hidden;
     display: grid;
-    grid-template-columns: 1fr auto;
     align-items: center;
-    gap: 12px;
-    background: linear-gradient(180deg, #3a2818 0%, #1f1409 100%);
+    background: linear-gradient(180deg, #1c4a2c 0%, #143a22 100%);
     border: 1px solid var(--parchment-edge);
     border-radius: 2px;
-    padding: 6px 12px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+  }
+  .progress-fill {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: var(--pct, 0%);
+    background: linear-gradient(180deg, #7fcf52 0%, #4a8a3a 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.25),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+    z-index: 0;
+    transition: width 0.4s ease;
+  }
+  .progress-total > *:not(.progress-fill),
+  .progress-item > *:not(.progress-fill) { position: relative; z-index: 1; }
+
+  .progress-total {
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    padding: 8px 14px;
     margin-bottom: 8px;
   }
   .progress-total-label {
     font-family: var(--serif-display);
-    color: var(--gold);
+    color: #fff8d8;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     font-size: 0.95rem;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
   }
   .progress-total-value {
     font-family: var(--serif-display);
-    color: var(--gold);
+    color: var(--gold-bright);
     font-weight: 700;
     font-size: 1.05rem;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
   }
 
   .progress-grid {
@@ -656,23 +680,20 @@
     gap: 6px;
   }
   @media (max-width: 600px) { .progress-grid { grid-template-columns: 1fr; } }
+  .progress-grid > .progress-item:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .progress-item {
-    display: grid;
     grid-template-columns: 1fr auto;
-    align-items: center;
     gap: 8px;
-    background: linear-gradient(180deg, #3a2818 0%, #1f1409 100%);
-    border: 1px solid var(--parchment-edge);
-    border-radius: 2px;
-    padding: 5px 12px;
-    color: var(--text);
+    padding: 6px 12px;
+    color: #fff8d8;
     font-family: var(--serif-display);
     font-weight: 500;
     font-size: 0.9rem;
     letter-spacing: 0.04em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
   }
   .progress-item-name { text-transform: none; }
-  .progress-item-value { color: var(--gold); font-weight: 700; }
+  .progress-item-value { color: var(--gold-bright); font-weight: 700; }
 
   /* Achievement list inside content panel (parchment-styled) */
   .content .filters { padding: 0 0 8px 0; }
@@ -1272,30 +1293,60 @@
       `;
     }).join('');
 
-    const progress = (data.category_progress || []).slice().sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
-    const totalQuantity = data.total_quantity ?? 0;
+    const completedIds = new Set(
+      (data.achievements || [])
+        .filter(a => a.completed_timestamp)
+        .map(a => a.id)
+    );
+
+    // Build per-root rollups when the category map is loaded; otherwise fall
+    // back to the flat list from the API so the summary still renders.
+    let rows = [];
+    let totalCompleted = data.total_quantity ?? 0;
     let totalPossible = null;
-    if (categoryData) {
-      const all = new Set();
-      for (const id of (categoryData.root_ids || [])) {
-        const cat = categoryData.categories[String(id)];
-        if (cat?.achievement_ids) cat.achievement_ids.forEach(x => all.add(x));
-      }
-      totalPossible = all.size || null;
+
+    if (categoryData?.root_ids?.length) {
+      const allIds = new Set();
+      rows = categoryData.root_ids.map(rootId => {
+        const cat = categoryData.categories[String(rootId)];
+        if (!cat) return null;
+        const ids = collectAchievementIds(rootId);
+        ids.forEach(x => allIds.add(x));
+        let completed = 0;
+        ids.forEach(x => { if (completedIds.has(x)) completed++; });
+        return { name: cat.name, completed, possible: ids.size };
+      }).filter(Boolean);
+      totalCompleted = 0;
+      allIds.forEach(x => { if (completedIds.has(x)) totalCompleted++; });
+      totalPossible = allIds.size || null;
+    } else {
+      rows = (data.category_progress || [])
+        .slice()
+        .sort((a, b) => (b.quantity || 0) - (a.quantity || 0))
+        .map(c => ({
+          name: c.category?.name || '—',
+          completed: c.quantity ?? 0,
+          possible: null,
+        }));
     }
 
-    const progressHtml = progress.map(c => {
-      const name = c.category?.name || '—';
-      const id = c.category?.id;
-      const q = c.quantity ?? 0;
-      const possible = id && categoryData?.categories?.[String(id)]?.achievement_ids?.length;
+    const fmt = n => Number(n).toLocaleString(_.dateLocale);
+    const pct = (c, p) => (p && p > 0) ? Math.min(100, (c / p) * 100) : (c > 0 ? 100 : 0);
+
+    const progressHtml = rows.map(r => {
+      const value = r.possible != null ? `${fmt(r.completed)}/${fmt(r.possible)}` : fmt(r.completed);
+      const fill = pct(r.completed, r.possible);
       return `
         <div class="progress-item">
-          <span class="progress-item-name">${escapeHtml(name)}</span>
-          <span class="progress-item-value">${q}${possible ? '/' + possible : ''}</span>
+          <div class="progress-fill" style="width: ${fill.toFixed(2)}%"></div>
+          <span class="progress-item-name">${escapeHtml(r.name)}</span>
+          <span class="progress-item-value">${value}</span>
         </div>
       `;
     }).join('');
+
+    const totalValue = totalPossible != null ? `${fmt(totalCompleted)}/${fmt(totalPossible)}` : fmt(totalCompleted);
+    const totalFill = pct(totalCompleted, totalPossible);
 
     const recentBlock = recent.length ? `
       <h3 class="banner">${escapeHtml(_.recentTitle)}</h3>
@@ -1306,11 +1357,25 @@
       ${recentBlock}
       <h3 class="banner">${escapeHtml(_.progressTitle)}</h3>
       <div class="progress-total">
+        <div class="progress-fill" style="width: ${totalFill.toFixed(2)}%"></div>
         <span class="progress-total-label">${escapeHtml(_.totalEarned)}</span>
-        <span class="progress-total-value">${totalQuantity}${totalPossible ? '/' + totalPossible : ''}</span>
+        <span class="progress-total-value">${totalValue}</span>
       </div>
       <div class="progress-grid">${progressHtml}</div>
     `;
+  }
+
+  function collectAchievementIds(rootId) {
+    const ids = new Set();
+    if (!categoryData) return ids;
+    const visit = id => {
+      const cat = categoryData.categories[String(id)];
+      if (!cat) return;
+      (cat.achievement_ids || []).forEach(x => ids.add(x));
+      (cat.subcategory_ids || []).forEach(visit);
+    };
+    visit(rootId);
+    return ids;
   }
 
   function renderListView() {
