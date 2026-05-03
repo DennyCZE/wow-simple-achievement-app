@@ -1075,15 +1075,23 @@
   .char-card.horde    { border-left: 3px solid #8a1f15; }
   .char-hero {
     flex: 0 0 auto;
-    width: 200px;
+    width: clamp(200px, 28vw, 340px);
     max-width: 100%;
+    margin-inline: auto;
     border: 1px solid var(--parchment-edge);
     border-radius: 3px;
     overflow: hidden;
     background: #1a0d04;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   }
-  .char-hero img { display: block; width: 100%; height: auto; }
+  .char-hero img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    object-position: center 20%;
+    margin-inline: auto;
+  }
   .char-info { flex: 1 1 280px; min-width: 0; }
   .char-name {
     margin: 0 0 4px 0;
