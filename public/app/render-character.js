@@ -15,7 +15,7 @@ export function renderCharacterView() {
   if (!c) return '';
 
   const _ = t();
-  const heroSrc = c.main_url || c.inset_url || c.avatar_url || '';
+  const heroSrc = c.main_raw_url || c.main_url || c.inset_url || c.avatar_url || '';
   const factionClass = (c.faction || '').toLowerCase().includes('alliance') ? 'alliance'
                     : (c.faction || '').toLowerCase().includes('horde')   ? 'horde'
                     : '';
