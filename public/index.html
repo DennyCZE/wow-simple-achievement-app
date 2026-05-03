@@ -14,52 +14,56 @@
 </head>
 <body>
 <div class="container">
-  <h1>⚔️ WoW Simple Achievement App</h1>
-  <div class="subtitle">
-    <span>Vyhledávač achievementů postavy přes Battle.net API</span>
-    <span style="display:flex; gap: 8px; align-items: center;">
-      <button id="favToggle" class="fav-toggle" hidden></button>
+  <header class="app-header">
+    <button id="favToggle" class="fav-toggle" hidden></button>
+    <span class="app-header-actions">
       <span id="cacheBadge"></span>
     </span>
-  </div>
+  </header>
 
   <div id="favorites" class="favorites" style="display:none;"></div>
 
-  <div class="form-card">
-    <div class="form-row">
-      <div>
-        <label for="character">Jméno postavy</label>
-        <input type="text" id="character" placeholder="např. Thrall" autocomplete="off">
+  <div class="form-card" id="formCard">
+    <button class="form-collapsed-bar" id="formExpand" type="button" hidden>
+      <span class="form-collapsed-current" id="formCurrent"></span>
+      <span class="form-collapsed-action" id="formExpandAction">Změnit postavu</span>
+    </button>
+    <div class="form-fields" id="formFields">
+      <div class="form-row">
+        <div>
+          <label for="character">Jméno postavy</label>
+          <input type="text" id="character" placeholder="např. Thrall" autocomplete="off">
+        </div>
+        <div>
+          <label for="realm">Realm / Server</label>
+          <input type="text" id="realm" placeholder="např. Argent Dawn" autocomplete="off" list="realm-history">
+          <datalist id="realm-history"></datalist>
+        </div>
       </div>
-      <div>
-        <label for="realm">Realm / Server</label>
-        <input type="text" id="realm" placeholder="např. Argent Dawn" autocomplete="off" list="realm-history">
-        <datalist id="realm-history"></datalist>
+      <div class="form-row-3">
+        <div>
+          <label for="region">Region</label>
+          <select id="region">
+            <option value="eu" selected>Evropa (EU)</option>
+            <option value="us">Amerika (US)</option>
+            <option value="kr">Korea (KR)</option>
+            <option value="tw">Taiwan (TW)</option>
+          </select>
+        </div>
+        <div>
+          <label for="locale">Jazyk</label>
+          <select id="locale">
+            <option value="cs_CZ" selected>Čeština</option>
+            <option value="en_GB">English (EU)</option>
+            <option value="en_US">English (US)</option>
+            <option value="de_DE">Deutsch</option>
+            <option value="pl_PL">Polski</option>
+            <option value="ru_RU">Русский</option>
+          </select>
+        </div>
       </div>
+      <button id="searchBtn">Načíst achievementy</button>
     </div>
-    <div class="form-row-3">
-      <div>
-        <label for="region">Region</label>
-        <select id="region">
-          <option value="eu" selected>Evropa (EU)</option>
-          <option value="us">Amerika (US)</option>
-          <option value="kr">Korea (KR)</option>
-          <option value="tw">Taiwan (TW)</option>
-        </select>
-      </div>
-      <div>
-        <label for="locale">Jazyk</label>
-        <select id="locale">
-          <option value="cs_CZ" selected>Čeština</option>
-          <option value="en_GB">English (EU)</option>
-          <option value="en_US">English (US)</option>
-          <option value="de_DE">Deutsch</option>
-          <option value="pl_PL">Polski</option>
-          <option value="ru_RU">Русский</option>
-        </select>
-      </div>
-    </div>
-    <button id="searchBtn">Načíst achievementy</button>
   </div>
 
   <div id="status"></div>

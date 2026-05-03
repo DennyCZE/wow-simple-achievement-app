@@ -31,28 +31,19 @@
     min-height: 100vh;
   }
   .container { max-width: 960px; margin: 0 auto; }
-  h1 {
-    margin: 0 0 4px 0;
-    font-family: var(--serif-display);
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--gold);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    text-shadow:
-      0 0 24px rgba(240, 196, 25, 0.35),
-      0 2px 4px rgba(0, 0, 0, 0.8);
-  }
-  .subtitle {
-    color: var(--muted);
-    margin-bottom: 24px;
-    font-size: 0.95rem;
-    font-style: italic;
+  .app-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
     gap: 8px;
+    margin-bottom: 12px;
+    min-height: 24px;
+  }
+  .app-header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: auto;
   }
   .cache-badge {
     font-size: 0.75rem;
@@ -78,6 +69,56 @@
       inset 0 0 30px rgba(0, 0, 0, 0.4),
       0 4px 20px rgba(0, 0, 0, 0.6);
   }
+  .form-card.collapsed { padding: 0; }
+  .form-card.collapsed .form-fields { display: none; }
+  .form-collapsed-bar {
+    width: 100%;
+    margin: 0;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    color: var(--text);
+    font-family: var(--serif-body);
+    font-size: 1rem;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: normal;
+    cursor: pointer;
+  }
+  .form-collapsed-bar:hover { filter: none; background: rgba(240, 196, 25, 0.06); }
+  .form-collapsed-current {
+    color: var(--gold);
+    font-family: var(--serif-display);
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .form-collapsed-current .form-collapsed-meta {
+    color: var(--muted);
+    font-family: var(--serif-body);
+    font-style: italic;
+    font-size: 0.85rem;
+    letter-spacing: 0;
+    margin-left: 6px;
+  }
+  .form-collapsed-action {
+    color: var(--muted);
+    font-family: var(--serif-display);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+  .form-collapsed-action::after { content: ' ▾'; }
   .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;

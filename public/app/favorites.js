@@ -66,6 +66,7 @@ export function renderFavorites({ onPick }) {
       e.stopPropagation();
       const f = read()[parseInt(btn.dataset.idx, 10)];
       if (!f) return;
+      if (!confirm(t().favRemoveConfirm(f))) return;
       removeFavorite(f);
       renderFavorites({ onPick });
       updateFavToggle();

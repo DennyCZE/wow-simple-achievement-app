@@ -1,4 +1,4 @@
-import { $, showStatus, clearStatus } from './dom.js';
+import { $, escapeHtml, showStatus, clearStatus } from './dom.js';
 import { state } from './state.js';
 import { t, refreshStaticLabels } from './i18n.js';
 import { fetchAchievements, ensureCategoryMap } from './api.js';
@@ -14,6 +14,19 @@ import { initTooltip, hideTip } from './tooltip.js';
 
 const searchBtn  = $('searchBtn');
 const cacheBadge = $('cacheBadge');
+
+function collapseForm({ character, realm, region }) {
+  $('formCurrent').innerHTML =
+    `${escapeHtml(character)}<span class="form-collapsed-meta">· ${escapeHtml(realm)} (${region.toUpperCase()})</span>`;
+  $('formExpand').hidden = false;
+  $('formCard').classList.add('collapsed');
+}
+function expandForm() {
+  $('formCard').classList.remove('collapsed');
+  $('formExpand').hidden = true;
+  setTimeout(() => $('character').focus(), 0);
+}
+$('formExpand').addEventListener('click', expandForm);
 
 // Persist form values across reloads.
 ['character', 'realm', 'region', 'locale'].forEach(id => {
@@ -96,6 +109,7 @@ async function loadAchievements() {
     renderSidebar();
     renderContent();
     updateFavToggle();
+    collapseForm({ character, realm, region });
     clearStatus();
   } catch (err) {
     showStatus(t().statusConn + err.message, 'error');
@@ -141,7 +155,12 @@ renderFavorites({ onPick: pickFavorite });
 $('favToggle').addEventListener('click', () => {
   const f = currentFormFav();
   if (!f.character || !f.realm) return;
-  if (isFavorite(f)) removeFavorite(f); else addFavorite(f);
+  if (isFavorite(f)) {
+    if (!confirm(t().favRemoveConfirm(f))) return;
+    removeFavorite(f);
+  } else {
+    addFavorite(f);
+  }
   renderFavorites({ onPick: pickFavorite });
   updateFavToggle();
 });

@@ -2,7 +2,6 @@ import { $ } from './dom.js';
 
 export const i18n = {
   cs: {
-    subtitle: 'Vyhledávač achievementů postavy přes Battle.net API',
     labelCharacter: 'Jméno postavy',
     labelRealm: 'Realm / Server',
     labelRegion: 'Region',
@@ -15,6 +14,8 @@ export const i18n = {
     favAdd: '☆ Přidat do oblíbených',
     favRemove: '★ Odebrat z oblíbených',
     favRemoveAria: 'Odebrat',
+    favRemoveConfirm: f => `Odebrat "${f.character} – ${f.realm} (${f.region.toUpperCase()})" z oblíbených?`,
+    formExpand: 'Změnit postavu',
     cacheHit: 'cache: hit',
     cacheLive: 'cache: live',
     statusFillFields: 'Vyplň prosím jméno postavy i realm.',
@@ -42,7 +43,6 @@ export const i18n = {
     sortLocale: 'cs',
   },
   en: {
-    subtitle: 'Look up character achievements via the Battle.net API',
     labelCharacter: 'Character name',
     labelRealm: 'Realm / Server',
     labelRegion: 'Region',
@@ -55,6 +55,8 @@ export const i18n = {
     favAdd: '☆ Add to favorites',
     favRemove: '★ Remove from favorites',
     favRemoveAria: 'Remove',
+    favRemoveConfirm: f => `Remove "${f.character} – ${f.realm} (${f.region.toUpperCase()})" from favorites?`,
+    formExpand: 'Change character',
     cacheHit: 'cache: hit',
     cacheLive: 'cache: live',
     statusFillFields: 'Please enter both character name and realm.',
@@ -90,7 +92,6 @@ export const t = () => i18n[uiLang()];
 // Called on init and after the locale dropdown changes.
 export function refreshStaticLabels() {
   const _ = t();
-  document.querySelector('.subtitle > span:first-child').textContent = _.subtitle;
   document.querySelector('label[for="character"]').textContent = _.labelCharacter;
   document.querySelector('label[for="realm"]').textContent = _.labelRealm;
   document.querySelector('label[for="region"]').textContent = _.labelRegion;
@@ -105,5 +106,6 @@ export function refreshStaticLabels() {
   $('realm').placeholder = _.placeholderRealm;
   $('pointsLabel').textContent = _.pointsTitle;
   $('searchInput').placeholder = _.searchPlaceholder;
+  $('formExpandAction').textContent = _.formExpand;
   document.documentElement.lang = uiLang();
 }
