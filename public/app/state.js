@@ -3,9 +3,12 @@
 export const state = {
   currentFilter: 'all',
   searchTerm: '',
-  currentView: 'summary',         // 'summary' or a category id (number)
+  currentView: 'summary',         // 'summary', 'character', or a category id (number)
   categoryData: null,              // { region, locale, fetched_at, root_ids, categories }
   categoryMapPromise: null,
   lastResultsData: null,
   childStateById: {},              // ach.id → Map<criterionId, isCompleted>
+  characterData: null,             // simplified profile summary, lazily loaded
+  characterStatus: 'idle',         // 'idle' | 'loading' | 'loaded' | 'error'
+  characterError: '',
 };

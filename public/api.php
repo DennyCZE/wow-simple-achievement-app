@@ -301,6 +301,122 @@ try {
     }
 
     // --------------------------------------------------------
+    // action=character-summary: profile summary + media, merged.
+    // Lazy-loaded by the Postava tab. Cached for CACHE_TTL.
+    // --------------------------------------------------------
+    if ($action === 'character-summary') {
+        $realm     = strtolower(trim((string)($_GET['realm']     ?? '')));
+        $character = strtolower(trim((string)($_GET['character'] ?? '')));
+
+        $realm = preg_replace('/[^a-z0-9-]/', '-', $realm) ?? '';
+        $realm = trim(preg_replace('/-+/', '-', $realm) ?? '', '-');
+
+        $character = preg_replace('/[^a-zàáâäçčďéèêëěíìîïľĺňñóòôöŕřšťúùûüůýÿžź0-9-]/u', '', $character) ?? '';
+
+        if ($realm === '' || $character === '') {
+            json_error(400, 'Missing or invalid realm/character');
+        }
+
+        $cacheKey = sprintf('char-summary:%s:%s:%s:%s', $region, $realm, $character, $locale);
+        $cached = $cache->get($cacheKey);
+        if ($cached !== null) {
+            header('X-Cache: HIT');
+            echo $cached;
+            exit;
+        }
+        header('X-Cache: MISS');
+
+        $summary = $client->getCharacterProfileSummary($region, $realm, $character, $locale);
+        if ($summary['status'] === 404) {
+            json_error(404, 'Character not found.');
+        }
+        if ($summary['status'] !== 200) {
+            json_error(502, 'Blizzard API returned HTTP ' . $summary['status']);
+        }
+        $sum = json_decode($summary['body'], true);
+        if (!is_array($sum)) {
+            json_error(502, 'Invalid JSON from Blizzard');
+        }
+
+        // Blizzard returns name: null for race/class/spec/faction/gender/realm
+        // when the requested locale lacks a translation. Re-fetch in en_US and
+        // use those names as a fallback so the tab isn't full of empty rows.
+        $sumEn = null;
+        $localizedPaths = [
+            ['race', 'name'], ['character_class', 'name'], ['active_spec', 'name'],
+            ['faction', 'name'], ['gender', 'name'], ['realm', 'name'], ['guild', 'name'],
+        ];
+        $needsFallback = false;
+        if ($locale !== 'en_US') {
+            foreach ($localizedPaths as [$a, $b]) {
+                $node = $sum[$a] ?? null;
+                if (is_array($node) && ($node[$b] ?? null) === null) { $needsFallback = true; break; }
+            }
+        }
+        if ($needsFallback) {
+            try {
+                $resEn = $client->getCharacterProfileSummary($region, $realm, $character, 'en_US');
+                if ($resEn['status'] === 200) {
+                    $decoded = json_decode($resEn['body'], true);
+                    if (is_array($decoded)) $sumEn = $decoded;
+                }
+            } catch (Throwable $e) {
+                // ignore — primary data is still useful
+            }
+        }
+
+        $localized = static function (?array $primary, ?array $fallback, string $field): string {
+            $v = $primary[$field] ?? null;
+            if (is_string($v) && $v !== '') return $v;
+            $v = $fallback[$field] ?? null;
+            return is_string($v) ? $v : '';
+        };
+
+        // Media is best-effort — if it fails, we still return the profile.
+        $assets = [];
+        try {
+            $media = $client->getCharacterMedia($region, $realm, $character, $locale);
+            if ($media['status'] === 200) {
+                $mediaData = json_decode($media['body'], true);
+                if (is_array($mediaData)) {
+                    foreach ($mediaData['assets'] ?? [] as $asset) {
+                        $key = (string)($asset['key'] ?? '');
+                        $val = (string)($asset['value'] ?? '');
+                        if ($key !== '' && $val !== '') $assets[$key] = $val;
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+            // ignore — character can be returned without images
+        }
+
+        $simplified = [
+            'name'                 => (string)($sum['name'] ?? ''),
+            'level'                => (int)($sum['level'] ?? 0),
+            'race'                 => $localized($sum['race']            ?? null, $sumEn['race']            ?? null, 'name'),
+            'class'                => $localized($sum['character_class'] ?? null, $sumEn['character_class'] ?? null, 'name'),
+            'spec'                 => $localized($sum['active_spec']     ?? null, $sumEn['active_spec']     ?? null, 'name'),
+            'faction'              => $localized($sum['faction']         ?? null, $sumEn['faction']         ?? null, 'name'),
+            'gender'               => $localized($sum['gender']          ?? null, $sumEn['gender']          ?? null, 'name'),
+            'realm'                => $localized($sum['realm']           ?? null, $sumEn['realm']           ?? null, 'name'),
+            'guild'                => $localized($sum['guild']           ?? null, $sumEn['guild']           ?? null, 'name'),
+            'achievement_points'   => (int)($sum['achievement_points'] ?? 0),
+            'equipped_item_level'  => (int)($sum['equipped_item_level'] ?? 0),
+            'average_item_level'   => (int)($sum['average_item_level'] ?? 0),
+            'last_login_timestamp' => (int)($sum['last_login_timestamp'] ?? 0),
+            'avatar_url'           => $assets['avatar']   ?? '',
+            'inset_url'            => $assets['inset']    ?? '',
+            'main_url'             => $assets['main']     ?? '',
+            'main_raw_url'         => $assets['main-raw'] ?? '',
+        ];
+
+        $body = json_encode($simplified, JSON_UNESCAPED_UNICODE);
+        $cache->set($cacheKey, $body, $cacheTtl);
+        echo $body;
+        exit;
+    }
+
+    // --------------------------------------------------------
     // action=achievements (default): character achievement summary
     // --------------------------------------------------------
     $realm     = strtolower(trim((string)($_GET['realm']     ?? '')));

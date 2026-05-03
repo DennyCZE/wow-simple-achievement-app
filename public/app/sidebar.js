@@ -6,7 +6,9 @@ export function renderSidebar() {
   const _ = t();
   const sidebar = $('sidebar');
   const cd = state.categoryData;
-  let html = `<div class="sidebar-item${state.currentView === 'summary' ? ' active' : ''}" data-view="summary">${escapeHtml(_.summaryView)}</div>`;
+  let html =
+      `<div class="sidebar-item${state.currentView === 'summary' ? ' active' : ''}" data-view="summary">${escapeHtml(_.summaryView)}</div>`
+    + `<div class="sidebar-item${state.currentView === 'character' ? ' active' : ''}" data-view="character">${escapeHtml(_.characterView)}</div>`;
 
   if (cd?.root_ids?.length) {
     for (const rootId of cd.root_ids) {

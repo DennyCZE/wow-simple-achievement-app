@@ -1046,6 +1046,81 @@
     color: var(--parchment-muted);
   }
 
+  /* Character ("Postava") view */
+  .char-status {
+    padding: 14px 18px;
+    background: rgba(58, 32, 20, 0.12);
+    border: 1px dashed var(--parchment-edge);
+    color: var(--parchment-muted);
+    font-style: italic;
+    border-radius: 3px;
+  }
+  .char-status-error {
+    border-style: solid;
+    color: var(--error);
+    border-color: var(--error);
+    background: rgba(217, 100, 68, 0.08);
+  }
+  .char-card {
+    display: flex;
+    gap: 18px;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid var(--parchment-edge);
+    border-radius: 3px;
+    flex-wrap: wrap;
+    color: var(--parchment-text);
+  }
+  .char-card.alliance { border-left: 3px solid #2c5fa0; }
+  .char-card.horde    { border-left: 3px solid #8a1f15; }
+  .char-hero {
+    flex: 0 0 auto;
+    width: 200px;
+    max-width: 100%;
+    border: 1px solid var(--parchment-edge);
+    border-radius: 3px;
+    overflow: hidden;
+    background: #1a0d04;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  }
+  .char-hero img { display: block; width: 100%; height: auto; }
+  .char-info { flex: 1 1 280px; min-width: 0; }
+  .char-name {
+    margin: 0 0 4px 0;
+    font-family: var(--serif-display);
+    font-size: 1.6rem;
+    color: var(--parchment-text);
+    letter-spacing: 0.05em;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+  .char-tagline {
+    color: var(--parchment-muted);
+    font-style: italic;
+    margin-bottom: 14px;
+    font-size: 0.95rem;
+  }
+  .char-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 6px 16px;
+    margin: 0;
+  }
+  .char-stat { margin: 0; padding: 6px 0; border-bottom: 1px dotted rgba(110, 79, 42, 0.4); }
+  .char-stat dt {
+    font-family: var(--serif-display);
+    font-size: 0.7rem;
+    color: var(--parchment-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 2px;
+  }
+  .char-stat dd {
+    margin: 0;
+    color: var(--parchment-text);
+    font-size: 1rem;
+    font-weight: 500;
+  }
+
   /* Scrollbars — gold thumb on dark wood track */
   html { scrollbar-color: var(--gold-deep) var(--bg-deep); scrollbar-width: thin; }
   ::-webkit-scrollbar { width: 12px; height: 12px; }

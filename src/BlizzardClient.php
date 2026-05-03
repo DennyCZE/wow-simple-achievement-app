@@ -96,6 +96,67 @@ final class BlizzardClient
         return ['status' => (int)$httpCode, 'body' => (string)$body];
     }
 
+    /**
+     * Character profile summary — level, race, class, guild, item level, etc.
+     *
+     * @return array{status:int, body:string}
+     */
+    public function getCharacterProfileSummary(
+        string $region,
+        string $realm,
+        string $character,
+        string $locale,
+    ): array {
+        $url = sprintf(
+            'https://%s.api.blizzard.com/profile/wow/character/%s/%s?namespace=profile-%s&locale=%s',
+            $region, rawurlencode($realm), rawurlencode($character), $region, $locale
+        );
+        return $this->requestRaw($url);
+    }
+
+    /**
+     * Character media — avatar, inset, main render images.
+     *
+     * @return array{status:int, body:string}
+     */
+    public function getCharacterMedia(
+        string $region,
+        string $realm,
+        string $character,
+        string $locale,
+    ): array {
+        $url = sprintf(
+            'https://%s.api.blizzard.com/profile/wow/character/%s/%s/character-media?namespace=profile-%s&locale=%s',
+            $region, rawurlencode($realm), rawurlencode($character), $region, $locale
+        );
+        return $this->requestRaw($url);
+    }
+
+    /** @return array{status:int, body:string} */
+    private function requestRaw(string $url): array
+    {
+        $token = $this->getAccessToken();
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $token],
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_CONNECTTIMEOUT => 5,
+        ]);
+
+        $body     = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err      = curl_error($ch);
+        curl_close($ch);
+
+        if ($body === false) {
+            throw new RuntimeException('Blizzard API request failed: ' . $err);
+        }
+
+        return ['status' => (int)$httpCode, 'body' => (string)$body];
+    }
+
     /** @return array<string,mixed> */
     public function getRealmIndex(string $region, string $locale): array
     {

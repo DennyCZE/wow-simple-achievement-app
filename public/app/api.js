@@ -16,6 +16,16 @@ export async function fetchAchievements({ character, realm, region, locale }) {
   };
 }
 
+// Character profile summary + media — lazy-loaded by the Postava tab.
+export async function fetchCharacterSummary({ character, realm, region, locale }) {
+  const params = new URLSearchParams({
+    action: 'character-summary', character, realm, region, locale,
+  });
+  const res = await fetch(`${API_URL}?${params}`);
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
 // Realm autocomplete — cached in localStorage for 7 days per region.
 const REALM_CACHE_PREFIX = 'wow_realms:';
 const REALM_CACHE_TTL = 7 * 86400 * 1000;

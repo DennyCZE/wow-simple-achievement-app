@@ -10,6 +10,7 @@ import {
 import { renderSidebar } from './sidebar.js';
 import { renderSummaryView, ensureRecentDetails } from './render-summary.js';
 import { renderListView, attachAmountObservers } from './render-list.js';
+import { renderCharacterView, ensureCharacterData, resetCharacterState } from './render-character.js';
 import { initTooltip, hideTip } from './tooltip.js';
 
 const searchBtn  = $('searchBtn');
@@ -40,7 +41,9 @@ function renderContent() {
   hideTip();
   if (!state.lastResultsData) { content.innerHTML = ''; return; }
 
-  if (state.currentView === 'summary' && !state.searchTerm) {
+  if (state.currentView === 'character' && !state.searchTerm) {
+    content.innerHTML = renderCharacterView();
+  } else if (state.currentView === 'summary' && !state.searchTerm) {
     content.innerHTML = renderSummaryView();
     ensureRecentDetails();
   } else {
@@ -96,6 +99,7 @@ async function loadAchievements() {
     state.currentView = 'summary';
     state.currentFilter = 'all';
     state.searchTerm = '';
+    resetCharacterState();
     $('searchInput').value = '';
     $('window-wrap').style.display = 'block';
     $('pointsValue').textContent = (data.total_points ?? 0).toLocaleString(t().dateLocale);
@@ -140,12 +144,14 @@ $('region').addEventListener('change', () => {
   renderRealmDatalist();
   state.currentView = 'summary';
   state.categoryData = null;
+  resetCharacterState();
   rerenderResults();
 });
 $('locale').addEventListener('change', () => {
   renderRealmDatalist();
   refreshStaticLabels();
   updateFavToggle();
+  resetCharacterState();
   rerenderResults();
 });
 renderRealmDatalist();
@@ -194,6 +200,9 @@ $('sidebar').addEventListener('click', e => {
   if (!item) return;
   if (item.dataset.view === 'summary') {
     state.currentView = 'summary';
+  } else if (item.dataset.view === 'character') {
+    state.currentView = 'character';
+    ensureCharacterData(() => { renderSidebar(); renderContent(); });
   } else if (item.dataset.catId) {
     state.currentView = parseInt(item.dataset.catId, 10);
     if (!state.categoryData) {
