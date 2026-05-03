@@ -39,8 +39,23 @@ wow-app/
 │   ├── Cache.php               # SQLite cache class
 │   └── BlizzardClient.php      # Battle.net API client
 └── public/
-    ├── index.html              # frontend (Czech UI)
-    └── api.php                 # API endpoint
+    ├── index.html              # frontend shell (Czech UI)
+    ├── style.css               # all styles
+    ├── api.php                 # API endpoint (?action=… dispatch)
+    └── app/                    # browser-native ES modules (no bundler)
+        ├── main.js             # entry point
+        ├── api.js              # fetch wrappers
+        ├── state.js            # shared UI state
+        ├── i18n.js             # locale strings
+        ├── dom.js              # tiny DOM helpers
+        ├── realms.js           # realm datalist
+        ├── favorites.js        # favorite characters
+        ├── sidebar.js          # category nav
+        ├── render-summary.js   # default view
+        ├── render-list.js      # filtered list view
+        ├── render-character.js # Postava (character) tab
+        ├── category-tree.js    # category roll-up helpers
+        └── tooltip.js          # in-progress hover tooltip
 ```
 
 ## Safe Deployment (won't touch your other apps)
@@ -149,12 +164,28 @@ docker compose down
 docker volume rm wow-app_wow-data
 ```
 
+## API actions
+
+`api.php` dispatches on `?action=`. All actions take `region` (`us`/`eu`/`kr`/`tw`) and `locale` (defaults to `cs_CZ`).
+
+| `action` (default `achievements`) | Extra params | Purpose |
+|---|---|---|
+| `achievements` | `character`, `realm` | Full achievement summary for one character |
+| `character-summary` | `character`, `realm` | Profile fields + portraits — powers the Postava tab |
+| `achievement-detail` | `id` | Localized name + per-criterion text for the hover tooltip |
+| `category-map` | — | Category tree rolled up to descendant achievement IDs (heavy: 30–60s on cold cache) |
+| `realms` | — | Alphabetical realm list for the realm autocomplete |
+
 ## Caching behavior
 
-| Key pattern                  | TTL          | Purpose                              |
-|------------------------------|--------------|--------------------------------------|
-| `oauth_token`                | 23 hours     | Battle.net access token (shared)     |
-| `ach:eu:realm:char:cs_CZ`    | `CACHE_TTL`  | Per-character achievement response   |
+| Key pattern | TTL | Purpose |
+|---|---|---|
+| `oauth_token` | 23 hours | Battle.net access token (shared) |
+| `ach:{region}:{realm}:{character}:{locale}` | `CACHE_TTL` | Achievement summary |
+| `char-summary:{region}:{realm}:{character}:{locale}` | `CACHE_TTL` | Character profile + media |
+| `ach-detail-v4:{region}:{id}:{locale}` | 7 days | One achievement's localized detail |
+| `catmap4:{region}:{locale}` | 7 days | Full category tree rollup |
+| `realms:{region}:{locale}` | 7 days | Realm index |
 
 Frontend shows a `cache: hit` (green) or `cache: live` (blue) badge so you can see when it's serving cached data.
 
